@@ -157,6 +157,19 @@ This class cannot be instantiated directly.
 * A `User` is specialized as exactly one of `Buyer`, `Seller`, `LogisticsOperator`, `Administrator`, or `Supervisor`.
 * The `role` belongs to `User` because it represents what the user means within the system and the responsibilities associated with that user.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `register(identifier, fullName, email, role)` | Registers the user with its identity data and single role. Rejects a missing role (RG-02). |
+| `activate()` | Restores an inactive or blocked user to `ACTIVE`. |
+| `block()` | Suspends the user's access. |
+| `deactivate()` | Leaves the user registered but unable to operate. |
+| `isActive()` | Indicates whether the user's status is `ACTIVE`. |
+| `hasRole(expectedRole)` | Indicates whether the user holds the given `SystemRole`. |
+| `requireActive()` | Guarantees every operation is executed by an authenticated, active user (RG-01); throws otherwise. |
+| `sharesIdentityWith(other)` | Indicates whether two users represent the same identity, used to enforce RG-03 checks in subclasses. |
+
 ---
 
 # Buyer
@@ -189,6 +202,18 @@ A buyer never administers information belonging to other buyers, nor inventory i
 * A `Buyer` requests zero or more `Return` instances.
 * `orders` and `returns` are not populated by default; they are loaded on demand.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `registerCommercialProfile(primaryAddress)` | Sets the delivery address, enables the buyer commercially, and opens its `Cart`. |
+| `addAdditionalAddress(address)` / `removeAdditionalAddress(address)` | Manage secondary delivery locations. |
+| `restrictCommercially()` / `suspendCommercially()` / `enableCommercially()` | Change the buyer's `CommercialStatus`. |
+| `canPlaceOrders()` | Indicates whether the buyer is active and commercially enabled. |
+| `requireEligibleToPurchase()` | Guarantees the buyer can start a purchase; throws `BuyerNotEligibleException` otherwise. |
+| `registerOrder(order)` / `registerReturn(returnRequest)` | Link a newly created `Order` or `Return` to this buyer. |
+| `owns(order)` | Confirms an order belongs to this buyer, enforcing that a buyer never administers another buyer's information. |
+
 ---
 
 # Seller
@@ -219,6 +244,17 @@ Sellers cannot self-register; they are always incorporated by an `Administrator`
 * A `Seller` publishes zero or more `Product` instances.
 * A `Seller` initiates zero or more `Refund` instances for returns on their own products.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `onboardedBy(administrator)` | Records the `Administrator` that onboarded this seller; throws `SelfRegistrationNotAllowedException` when no administrator is given. |
+| `addWarehouse(warehouse)` | Adds a `SellerWarehouse`, assigning this seller as its owner. |
+| `publish(product)` | Adds a product to the catalog and publishes it. |
+| `registerInitiatedRefund(refund)` | Links a `Refund` this seller initiated. |
+| `owns(product)` | Confirms a product belongs to this seller. |
+| `requireOwnershipOf(product)` | Guarantees a seller only administers its own products (RG-03); throws `UnauthorizedDomainAccessException` otherwise. |
+
 ---
 
 # LogisticsOperator
@@ -235,6 +271,12 @@ Represents a user responsible for the physical operation of warehouses and the d
 
 * A `LogisticsOperator` dispatches zero or more `Shipment` instances.
 * A `LogisticsOperator` may register `InventoryMovement` instances of type `INFLOW`, `OUTFLOW`, or `ADJUSTMENT`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `dispatch(order, originWarehouse, dispatchDate)` | Prepares and links a `Shipment` for an order, moving it to `DISPATCHED`. Requires the `LOGISTICS_OPERATOR` role. |
 
 ---
 
@@ -254,6 +296,14 @@ Represents a user responsible for administering sellers and warehouses, and for 
 * An `Administrator` registers zero or more `Warehouse` instances.
 * An `Administrator` approves or rejects zero or more `Refund` instances initiated by a `Seller`.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `registerSeller(seller)` | Onboards a `Seller`, the only way a seller can be registered (no self-registration). |
+| `registerWarehouse(warehouse)` | Registers a `MarketplaceWarehouse`. |
+| `approveRefund(refund)` / `rejectRefund(refund)` | Authorizes or denies a `Refund` initiated by a Seller. Each method requires the `ADMINISTRATOR` role. |
+
 ---
 
 # Supervisor
@@ -269,6 +319,13 @@ Represents a read-only, oversight profile used for operational consultation and 
 ## Relationships
 
 * A `Supervisor` consults consolidated administrative information (OBJ-12).
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `canConsult()` | Indicates whether the supervisor is active and holds the `SUPERVISOR` role. |
+| `requireConsultationRights()` | Guarantees only an active Supervisor consults operational information. |
 
 ---
 
@@ -295,6 +352,15 @@ This class cannot be instantiated directly.
 
 * A `Warehouse` stores zero or more `Inventory` records.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `register(identifier, name, location)` | Registers the warehouse's identity data. |
+| `ownership()` | Abstract; returns whether the warehouse is `MARKETPLACE` or `SELLER` owned. |
+| `addInventory(stock)` | Links a stock record to this warehouse, guaranteeing at most one record per product. |
+| `findInventoryFor(product)` / `totalAvailableFor(product)` | Look up the stock a specific product has in this warehouse. |
+
 ---
 
 # MarketplaceWarehouse
@@ -310,6 +376,13 @@ Represents a warehouse owned and operated directly by NexusMarket, registered by
 ## Relationships
 
 * A `MarketplaceWarehouse` is registered by one `Administrator`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `registerBy(administrator)` | Records the `Administrator` who registered this warehouse. |
+| `ownership()` | Returns `WarehouseOwnership.MARKETPLACE`. |
 
 ---
 
@@ -332,6 +405,14 @@ Represents a warehouse owned and operated by a Seller.
 ## Relationships
 
 * A `SellerWarehouse` belongs to exactly one `Seller`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `assignOwner(seller)` | Sets the owning `Seller`. |
+| `isOwnedBy(seller)` | Confirms whether the given seller owns this warehouse. |
+| `ownership()` | Returns `WarehouseOwnership.SELLER`. |
 
 ---
 
@@ -362,6 +443,18 @@ This class cannot be instantiated directly.
 * A `Product` may generate zero or more `InventoryMovement` instances.
 * A `Product` may appear in zero or more `CartItem` and `OrderItem` instances.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `register(identifier, name, description)` | Registers the product's identity data, starting as `SUSPENDED`. |
+| `type()` | Abstract; returns `PHYSICAL` or `DIGITAL`. |
+| `requiresShipment()` | Abstract; indicates whether the product needs a `Shipment`. |
+| `publish()` / `suspend()` / `discontinue()` | Move the product through `ProductStatus`. `discontinue()` is final; a discontinued product can never be published again. |
+| `addVariant(variant)` | Adds a `ProductVariant` (color, size, model...). |
+| `isPublished()` | Indicates whether the product is currently visible in the catalog. |
+| `requirePurchasable()` | Guarantees the product can take part in a purchase; throws `InvalidProductException` otherwise. |
+
 ---
 
 # PhysicalProduct
@@ -384,6 +477,14 @@ Represents a tangible good that requires inventory tracking and physical dispatc
 
 * A `PhysicalProduct` is stocked in zero or more `Inventory` records, each tied to a specific `Warehouse`.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `totalAvailableQuantity()` | Sums the available quantity of this product across every warehouse. |
+| `type()` | Returns `ProductType.PHYSICAL`. |
+| `requiresShipment()` | Returns `true`. |
+
 ---
 
 # DigitalProduct
@@ -401,6 +502,14 @@ Represents an intangible good delivered immediately after payment confirmation. 
 | Attribute      | Type   | Description                                |
 | -------------- | ------ | --------------------------------------------- |
 | deliveryAsset  | String | Reference to the digital content delivered upon payment. |
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `deliver()` | Returns the deliverable asset immediately after payment confirmation; throws `InvalidProductException` if none was set. |
+| `type()` | Returns `ProductType.DIGITAL`. |
+| `requiresShipment()` | Returns `false`. |
 
 ---
 
@@ -438,6 +547,20 @@ Inventory marked as DAMAGED or with availableQty = 0
 cannot be reserved.
 ```
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `open(identifier, product, initialQuantity)` | Opens a stock record for a product; rejects a negative initial quantity. |
+| `registerInflow(quantity)` | Adds newly arrived stock to `availableQty`. |
+| `reserve(quantity)` | Holds stock for an active cart or pending order; throws `DamagedInventoryReservationException` when nothing is available and `InsufficientInventoryException` when the amount exceeds what is available. |
+| `releaseReservation(quantity)` | Returns previously reserved stock to the available pool. |
+| `confirmSaleOutflow(quantity)` | Removes previously reserved stock from the warehouse upon a confirmed sale. |
+| `adjust(newQuantity)` | Manually corrects the available quantity; never allows a negative value (`NegativeInventoryException`). |
+| `registerReturn(quantity)` | Reincorporates stock coming back from an approved return. |
+| `markAsDamaged(quantity)` | Moves available stock into the damaged pool, excluding it from reservation. |
+| `canReserve(quantity)` / `totalQuantity()` | Query helpers for available capacity and total stock. |
+
 ---
 
 # InventoryMovement
@@ -464,6 +587,13 @@ Movements provide traceability of every change applied to distributed stock, ana
 * One `Inventory` record may generate zero or more `InventoryMovement` instances.
 * Each `InventoryMovement` affects one `Inventory` record.
 * Each `InventoryMovement` is performed by one `User`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `record(movementId, movementType, quantity, performedBy, affectedInventory)` | Registers a movement, requiring an active user (RG-01) and a positive quantity. |
+| `isOfType(expectedType)` | Confirms the movement's `InventoryMovementType`. |
 
 ## Examples of Generated Movements
 
@@ -495,6 +625,18 @@ Represents the buyer's provisional product selection prior to confirming an orde
 * A `Cart` contains zero or more `CartItem` instances.
 * A `Cart` is converted into an `Order` upon checkout.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `addItem(product, quantity)` | Adds a published product to the selection, merging quantities when already present; rejects non-purchasable products. |
+| `removeItem(product)` / `updateQuantity(product, newQuantity)` | Remove or change a selected product's quantity. |
+| `clear()` | Empties the cart. |
+| `isEmpty()` | Indicates whether the cart has no items. |
+| `containsPhysicalProducts()` | Indicates whether the selection will require a `Shipment`. |
+| `estimatedTotal()` | Sums the estimated subtotal of every item. |
+| `requireReadyForCheckout()` | Guarantees the cart can be converted into an `Order`; throws `InvalidCartException` when empty or when an item is no longer purchasable. |
+
 ---
 
 # CartItem
@@ -513,6 +655,14 @@ Represents a single product selection within a `Cart`, including the desired qua
 ## Relationships
 
 * A `CartItem` references exactly one `Product`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `select(product, quantity)` | Sets the selected product and quantity; rejects a non-positive quantity. |
+| `increaseQuantity(amount)` / `changeQuantity(newQuantity)` | Adjust the selected quantity. |
+| `estimatedSubtotal()` | Computes quantity × unit price. |
 
 ---
 
@@ -549,6 +699,21 @@ A finalized Order (status = DELIVERED_FINALIZED)
 cannot be modified under any circumstance.
 ```
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `placeFrom(identifier, buyer, cart)` | Converts a buyer's cart into a formal order in `CART` status; requires an eligible buyer and a checkout-ready cart. |
+| `submitForPayment()` | Moves the order to `PENDING_PAYMENT`. |
+| `markAsPaid(invoice)` | Confirms payment and attaches the generated `Invoice`, moving to `PAID`. |
+| `dispatch(shipment)` | Attaches a `Shipment` and moves to `DISPATCHED`; only allowed for orders that require shipment. |
+| `confirmDelivery()` | Closes the order as `DELIVERED_FINALIZED`, confirming the shipment's delivery when one exists. |
+| `isFinalized()` | Indicates whether the order has reached `DELIVERED_FINALIZED`. |
+| `requireModifiable()` | Guarantees the order can still change; throws `OrderAlreadyFinalizedException` otherwise. |
+| `requiresShipment()` | Indicates whether any item needs physical dispatch. |
+| `totalAmount()` | Sums every `OrderItem` subtotal. |
+| `belongsTo(candidate)` | Confirms the order was placed by the given buyer. |
+
 ---
 
 # OrderItem
@@ -568,6 +733,14 @@ Represents a single product and quantity within a confirmed `Order`, together wi
 ## Relationships
 
 * An `OrderItem` references exactly one `Product`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `confirm(product, quantity, unitPrice)` | Freezes the product, quantity, and price at the moment of purchase. |
+| `subtotal()` | Returns quantity × unit price. |
+| `requiresShipment()` | Indicates whether the underlying product needs physical dispatch. |
 
 ---
 
@@ -590,6 +763,13 @@ Represents the commercial billing information associated with a purchase (OBJ-09
 ## Relationships
 
 * An `Invoice` belongs to exactly one `Order`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `issueFor(identifier, order, currency)` | Issues the invoice, taking its total directly from the order's items. |
+| `isIssued()` | Indicates whether the invoice has already been issued. |
 
 ---
 
@@ -616,6 +796,14 @@ Represents the logistics process required to deliver the physical products of an
 * A `Shipment` is dispatched by exactly one `LogisticsOperator`.
 * A `Shipment` originates from exactly one `Warehouse`.
 
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `prepare(order, operator, originWarehouse, dispatchDate)` | Prepares the dispatch; only allowed for orders that require shipment. |
+| `confirmDelivery()` | Registers the confirmed delivery date; rejects a shipment that was never dispatched or already delivered. |
+| `isDelivered()` | Indicates whether the shipment has been delivered. |
+
 ---
 
 # Return
@@ -640,6 +828,15 @@ Represents a buyer's request to reverse all or part of a delivered `Order` (OBJ-
 * A `Return` is requested by exactly one `Buyer`.
 * A `Return` references exactly one `Order`.
 * A `Return` may generate exactly one `Refund`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `request(identifier, order, buyer, reason)` | Submits a return; only a finalized order owned by the requesting buyer can be returned. |
+| `approve()` / `reject()` | Move the return from `REQUESTED` to `APPROVED` or `REJECTED`. |
+| `complete()` | Closes the return once the returned product has been processed. |
+| `isApproved()` | Indicates whether the return is `APPROVED`, a precondition for initiating a `Refund`. |
 
 ---
 
@@ -666,6 +863,15 @@ Represents the monetary reimbursement associated with an approved `Return` (OBJ-
 * A `Refund` originates from exactly one `Return`.
 * A `Refund` is initiated by exactly one `Seller`, consistent with the Responsibility Matrix (Section 12 of the specification), where both Seller and Administrator participate in refund management.
 * A `Refund` is approved or rejected by exactly one `Administrator`. `approvedBy` remains empty while `refundStatus = PENDING`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. |
+| `approve(administrator)` / `reject(administrator)` | The Administrator authorizes or denies the refund; throws `SelfApprovalNotAllowedException` if the approver is the same participant who initiated it. |
+| `process()` | Completes the reimbursement once it has been `APPROVED`. |
+| `isPending()` | Indicates whether the refund still awaits an Administrator's decision. |
 
 ## Business Rule
 
@@ -793,3 +999,9 @@ refundStatus = PROCESSED  (only if APPROVED)
 
 * Business entities reference Value Objects (see *Domain Value Objects — NexusMarket*) instead of primitive strings for controlled business concepts such as roles, statuses, and product types.
 * This approach improves domain expressiveness, consistency, maintainability, and alignment with Domain-Driven Design principles.
+
+## Behavior and Exceptions
+
+* Entities are not anemic data holders: state changes happen exclusively through the methods documented in each entity's **Behavior** section, never through direct field assignment from outside the domain.
+* Every method that could violate a business rule validates its inputs and current state before changing anything, and raises a dedicated exception under `application.domain.exceptions` (all extending `DomainException`) when a rule would be broken — for example `NegativeInventoryException`, `OrderAlreadyFinalizedException`, or `SelfApprovalNotAllowedException`.
+* This keeps the business rules of Sections 10–11 of the specification (RG-01 to RG-03 and the critical validations) enforced by the domain itself, rather than depending on callers to remember to check them.
