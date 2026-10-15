@@ -454,6 +454,7 @@ This class cannot be instantiated directly.
 | `addVariant(variant)` | Adds a `ProductVariant` (color, size, model...). |
 | `isPublished()` | Indicates whether the product is currently visible in the catalog. |
 | `requirePurchasable()` | Guarantees the product can take part in a purchase; throws `InvalidProductException` otherwise. |
+| `requireInventoryManagedBy(user)` | Guarantees inventory for this product is administered only by its owning `Seller` or by a `LogisticsOperator`, consistent with the Responsibility Matrix (Section 12 of the specification); throws `UnauthorizedDomainAccessException` otherwise. |
 
 ---
 
@@ -713,6 +714,7 @@ cannot be modified under any circumstance.
 | `requiresShipment()` | Indicates whether any item needs physical dispatch. |
 | `totalAmount()` | Sums every `OrderItem` subtotal. |
 | `belongsTo(candidate)` | Confirms the order was placed by the given buyer. |
+| `includesProductOf(seller)` | Confirms at least one item of the order is a product published by the given seller; used to validate who may initiate a refund for this order. |
 
 ---
 
@@ -868,7 +870,7 @@ Represents the monetary reimbursement associated with an approved `Return` (OBJ-
 
 | Method | Description |
 | ------ | ----------- |
-| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. |
+| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. Rejects a seller who sold none of the returned order's products. |
 | `approve(administrator)` / `reject(administrator)` | The Administrator authorizes or denies the refund; throws `SelfApprovalNotAllowedException` if the approver is the same participant who initiated it. |
 | `process()` | Completes the reimbursement once it has been `APPROVED`. |
 | `isPending()` | Indicates whether the refund still awaits an Administrator's decision. |
@@ -876,9 +878,10 @@ Represents the monetary reimbursement associated with an approved `Return` (OBJ-
 ## Business Rule
 
 ```text
-A Refund must be initiated by the Seller responsible for the
-returned Product and can only move from PENDING to APPROVED
-or REJECTED through an explicit decision made by an Administrator.
+A Refund can only be initiated by a Seller who sold at least one
+product of the returned Order, and can only move from PENDING to
+APPROVED or REJECTED through an explicit decision made by an
+Administrator.
 
 The Seller who initiates a Refund cannot also be its approver,
 enforcing separation of duties between execution and authorization.

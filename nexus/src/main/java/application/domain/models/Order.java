@@ -147,6 +147,14 @@ public class Order {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    /**
+     * Indicates whether at least one item of the order is a product published by the given seller.
+     */
+    public boolean includesProductOf(Seller seller) {
+        return seller != null && items.stream()
+                .anyMatch(item -> item.getProduct() != null && seller.owns(item.getProduct()));
+    }
+
     public boolean belongsTo(Buyer candidate) {
         return buyer != null && candidate != null && buyer.sharesIdentityWith(candidate);
     }

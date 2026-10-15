@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
  * <p>Input: the identifier of the user performing the adjustment, the product and warehouse identifiers, and
  * the corrected quantity.
  * <p>Output: the persisted {@link Inventory} record with its available quantity corrected.
- * <p>Exceptions: {@link EntityNotFoundException} when the user, product, or inventory record do not exist;
+ * <p>Exceptions: {@link application.domain.exceptions.UnauthorizedDomainAccessException} when the user is neither
+ * the owning Seller nor a Logistics Operator, enforced by {@link PhysicalProduct#requireInventoryManagedBy};
+ * {@link EntityNotFoundException} when the user, product, or inventory record do not exist;
  * {@link application.domain.exceptions.NegativeInventoryException} when the new quantity is negative, enforced
  * by {@link Inventory#adjust}.
  */
@@ -37,10 +39,11 @@ public class AdjustInventoryService implements AdjustInventoryUseCase {
                             int newQuantity) {
         User performedBy = userRepositoryPort.findByIdentifier(performedByIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("User"));
-        performedBy.requireActive();
 
         PhysicalProduct product = productRepositoryPort.findPhysicalByIdentifier(productIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("PhysicalProduct"));
+        product.requireInventoryManagedBy(performedBy);
+
         Warehouse warehouse = warehouseRepositoryPort.findByIdentifier(warehouseIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Warehouse"));
         Inventory inventory = inventoryRepositoryPort.findByProductAndWarehouse(product, warehouse)

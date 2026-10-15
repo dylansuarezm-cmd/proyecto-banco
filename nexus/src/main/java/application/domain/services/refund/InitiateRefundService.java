@@ -20,7 +20,8 @@ import org.springframework.stereotype.Service;
  * <p>Output: the persisted {@link Refund}, in {@code PENDING} status, awaiting an Administrator's decision.
  * <p>Exceptions: {@link EntityNotFoundException} when the seller or return do not exist;
  * {@link application.domain.exceptions.InvalidRefundException} when the return is not approved or the amount
- * is not positive, enforced by {@link Refund#initiate}.
+ * is not positive, and {@link application.domain.exceptions.UnauthorizedDomainAccessException} when the seller
+ * sold no product of the returned order, both enforced by {@link Refund#initiate}.
  */
 @Service
 @RequiredArgsConstructor

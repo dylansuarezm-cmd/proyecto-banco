@@ -3,6 +3,7 @@ package application.domain.models;
 import application.domain.exceptions.InvalidRefundException;
 import application.domain.exceptions.InvalidStatusTransitionException;
 import application.domain.exceptions.SelfApprovalNotAllowedException;
+import application.domain.exceptions.UnauthorizedDomainAccessException;
 import application.domain.valueobjects.RefundStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -47,6 +48,10 @@ public class Refund {
             throw new InvalidRefundException("Refund amount must be greater than zero.");
         }
         seller.requireActive();
+        if (!relatedReturn.getOrder().includesProductOf(seller)) {
+            throw new UnauthorizedDomainAccessException(
+                    "Seller " + seller.getIdentifier() + " did not sell any product of the returned order.");
+        }
         this.identifier = identifier;
         this.relatedReturn = relatedReturn;
         this.initiatedBy = seller;

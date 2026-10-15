@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
  * <p>Input: the identifier of the user performing the movement, the product and warehouse identifiers, and the
  * incoming quantity.
  * <p>Output: the persisted {@link Inventory} record with its available quantity increased.
- * <p>Exceptions: {@link EntityNotFoundException} when the user, product, or the inventory record for that
+ * <p>Exceptions: {@link application.domain.exceptions.UnauthorizedDomainAccessException} when the user is neither
+ * the owning Seller nor a Logistics Operator, enforced by {@link PhysicalProduct#requireInventoryManagedBy};
+ * {@link EntityNotFoundException} when the user, product, or the inventory record for that
  * product/warehouse pair do not exist; {@link application.domain.exceptions.InvalidQuantityException} when the
  * quantity is not positive, enforced by {@link Inventory#registerInflow}.
  */
@@ -37,19 +39,16 @@ public class RegisterInventoryInflowService implements RegisterInventoryInflowUs
                                     String warehouseIdentifier, int quantity) {
         User performedBy = userRepositoryPort.findByIdentifier(performedByIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("User"));
-        performedBy.requireActive();
-
-        Inventory inventory = findInventory(productIdentifier, warehouseIdentifier);
-        inventory.registerInflow(quantity);
-        return inventoryRepositoryPort.save(inventory);
-    }
-
-    private Inventory findInventory(String productIdentifier, String warehouseIdentifier) {
         PhysicalProduct product = productRepositoryPort.findPhysicalByIdentifier(productIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("PhysicalProduct"));
+        product.requireInventoryManagedBy(performedBy);
+
         Warehouse warehouse = warehouseRepositoryPort.findByIdentifier(warehouseIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Warehouse"));
-        return inventoryRepositoryPort.findByProductAndWarehouse(product, warehouse)
+        Inventory inventory = inventoryRepositoryPort.findByProductAndWarehouse(product, warehouse)
                 .orElseThrow(() -> new EntityNotFoundException("Inventory"));
+
+        inventory.registerInflow(quantity);
+        return inventoryRepositoryPort.save(inventory);
     }
 }

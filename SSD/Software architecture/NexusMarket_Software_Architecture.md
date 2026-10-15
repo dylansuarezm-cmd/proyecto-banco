@@ -1,99 +1,96 @@
-# Software Architecture - NexusMarket
+# Software Architecture — NexusMarket
 
 ## Overview
 
-NexusMarket is a centralized digital marketplace that acts as a commercial intermediary between buyers and sellers. The system manages the complete business operation, including user management, seller administration, product catalog management, distributed inventory, shopping carts, orders, billing, logistics, returns, refunds, and administrative reporting.
+NexusMarket follows a **Hexagonal Architecture (Ports and Adapters)** combined with **Domain-Driven Design (DDD)** principles.
 
-Based on the functional specification, NexusMarket will use a **Hexagonal Architecture (Ports and Adapters)** combined with **Domain-Driven Design (DDD)** principles.
+The goal of this architecture is to keep the marketplace business domain — users, sellers, buyers, warehouses, catalog, inventory, cart, orders, invoicing, logistics, returns and refunds — isolated from frameworks, databases, and communication protocols. Business rules live in the domain and never depend on external technology.
 
-The main objective of this architecture is to keep the business rules independent from external technologies such as databases, REST communication, frameworks, and infrastructure components.
+This document describes the architecture **as it is implemented in the repository**, and clearly separates what already exists from what is planned for later stages.
 
-This approach promotes maintainability, testability, scalability, low coupling, and a clear separation of responsibilities.
+## Implementation Status
+
+| Component | Status |
+| --- | --- |
+| Domain models (22 entities with behavior) | Implemented |
+| Domain value objects (12) and enums (3) | Implemented |
+| Domain exceptions (23) | Implemented |
+| Input ports (22 use cases) | Implemented |
+| Output ports (14 repository contracts) | Implemented |
+| Domain services (22) | Implemented |
+| Input adapters (REST) | Planned |
+| Output adapters (persistence, reporting) | Planned |
+| Infrastructure (configuration, security) | Planned |
 
 ---
 
 # Architectural Principles
 
-The architecture is based on the following principles:
-
 - Domain-first design.
 - Separation of concerns.
-- Dependency inversion.
+- Dependency inversion: the domain defines the interfaces, adapters implement them.
 - Technology independence.
-- High cohesion.
-- Low coupling.
-- Explicit boundaries between layers.
-- Business rules centralized in the Domain.
-- External technologies connected through Ports and Adapters.
-
-The Domain must contain the core NexusMarket business rules and must not depend directly on infrastructure or communication technologies.
+- High cohesion and low coupling.
+- Rich domain model: entities protect their own business rules instead of being simple data holders.
+- One use case per input port and one service per use case.
 
 ---
 
 # Architecture Layers
 
-The application is organized into four major components:
-
 ```text
 Application
 │
-├── Adapters
+├── Adapters          (planned)
 │
-├── Domain
+├── Domain            (implemented)
 │
-└── Infrastructure
+└── Infrastructure    (planned)
 ```
-
-Each component has a clearly defined responsibility.
 
 ---
 
 # Package Structure
 
-The following structure is proposed for the NexusMarket implementation:
+The root package is `application`. Entries marked *(planned)* do not exist yet.
 
 ```text
 src/
 └── main/
     └── java/
-        └── nexusmarket/
+        └── application/
             │
-            ├── App.java
+            ├── NexusApplication.java
             │
-            ├── adapters/
-            │   │
+            ├── adapters/                          (planned)
             │   ├── in/
             │   │   └── rest/
             │   │       ├── controllers/
             │   │       ├── requests/
             │   │       ├── responses/
             │   │       └── mappers/
-            │   │
             │   └── out/
             │       └── persistence/
-            │           ├── mysql/
-            │           │   ├── adapters/
-            │           │   ├── entities/
-            │           │   ├── repositories/
-            │           │   └── mappers/
-            │           │
-            │           └── mongodb/
-            │               ├── adapters/
-            │               ├── documents/
-            │               ├── repositories/
-            │               └── mappers/
+            │           ├── relational/            (transactional data)
+            │           └── reporting/             (consolidated read models)
             │
             ├── domain/
-            │   ├── models/
-            │   ├── valueobjects/
-            │   ├── enums/
-            │   ├── services/
-            │   ├── exceptions/
-            │   └── ports/
-            │       ├── in/
-            │       └── out/
+            │   ├── models/                        22 entities
+            │   ├── valueobjects/                  12 value objects
+            │   ├── enums/                         3 enumerations
+            │   ├── exceptions/                    23 business exceptions
+            │   ├── ports/
+            │   │   ├── in/                        22 use case interfaces
+            │   │   └── out/                       14 repository interfaces
+            │   └── services/
+            │       ├── user/                      4 services
+            │       ├── warehouse/                 2 services
+            │       ├── catalog/                   3 services
+            │       ├── inventory/                 3 services
+            │       ├── order/                     5 services
+            │       └── refund/                    5 services
             │
-            └── infrastructure/
+            └── infrastructure/                    (planned)
                 ├── config/
                 ├── database/
                 └── security/
@@ -105,832 +102,244 @@ src/
 
 ## Application
 
-The `application` package represents the root of the NexusMarket application.
-
-### Responsibilities
-
-- Application bootstrap.
-- Component organization.
-- Dependency composition.
-- Initialization of the application environment.
-
-## App.java
-
-`App.java` is the application entry point.
-
-### Responsibilities
-
-- Initialize the application.
-- Load infrastructure configuration.
-- Configure dependencies.
-- Start the application.
+`NexusApplication.java` is the Spring Boot entry point (`@SpringBootApplication`). It starts the application and wires the components together.
 
 ---
 
-# Adapters
+# Adapters (planned)
 
-Adapters connect NexusMarket with external technologies.
-
-They translate external requests into application operations and transform domain results into technology-specific representations.
-
-The Domain must never communicate directly with external systems.
-
----
+Adapters connect external technologies with the domain. They translate external requests into calls to the input ports and translate domain objects into technology-specific representations. The domain never communicates with an external system directly.
 
 ## Input Adapters
 
-Input adapters expose the application to external clients.
+REST controllers will receive HTTP requests from the five participants (Buyer, Seller, Logistics Operator, Administrator, Supervisor), convert request DTOs into domain values, invoke the corresponding input port, and convert the result into a response DTO. Controllers must never contain business rules.
 
-Current proposed implementation:
+## Output Adapters
 
-```text
-adapters/in/rest
-```
+- **Relational persistence adapter:** will implement the output ports for the transactional data (users, catalog, inventory, carts, orders, invoices, shipments, returns, refunds).
+- **Reporting adapter:** will support the consolidated administrative consultation (OBJ-12), which is intentionally not a domain service because it does not protect any business rule.
 
-### Responsibilities
-
-- Receive HTTP requests.
-- Validate incoming data.
-- Convert Request DTOs into application/domain objects.
-- Execute application use cases.
-- Convert domain results into Response DTOs.
-
----
-
-## Controllers
-
-Controllers expose REST endpoints for the main NexusMarket operations.
-
-Possible controllers include:
-
-- `UserController`
-- `BuyerController`
-- `SellerController`
-- `WarehouseController`
-- `ProductController`
-- `InventoryController`
-- `CartController`
-- `OrderController`
-- `InvoiceController`
-- `ShipmentController`
-- `ReturnController`
-- `RefundController`
-- `ReportController`
-
-### Responsibilities
-
-- Receive HTTP requests.
-- Delegate execution to the appropriate input port.
-- Return HTTP responses.
-
-Controllers must not contain business rules.
-
----
-
-## Requests
-
-Request DTOs represent incoming API payloads.
-
-Examples:
-
-- `CreateBuyerRequest`
-- `CreateSellerRequest`
-- `CreateProductRequest`
-- `AddToCartRequest`
-- `CreateOrderRequest`
-- `CreateWarehouseRequest`
-
-### Responsibilities
-
-- Receive client data.
-- Validate basic input.
-- Transport data into the application layer.
-
-These objects must not contain business logic.
-
----
-
-## Responses
-
-Response DTOs represent information returned by the API.
-
-Examples:
-
-- `UserResponse`
-- `ProductResponse`
-- `InventoryResponse`
-- `OrderResponse`
-- `InvoiceResponse`
-- `ShipmentResponse`
-- `RefundResponse`
-- `ReportResponse`
-
-### Responsibilities
-
-- Return processed information.
-- Hide internal domain implementation.
-- Standardize API responses.
-
----
-
-## Mappers
-
-Mappers convert between external representations and domain/application objects.
-
-Main conversions:
-
-```text
-Request DTO ↔ Domain Model
-Domain Model ↔ Response DTO
-```
-
-This prevents REST-specific objects from entering the Domain layer.
-
----
-
-# Output Adapters
-
-Output adapters connect the Domain with external resources.
-
-Possible external resources include:
-
-- Relational databases.
-- Document databases for audit information.
-- Payment services.
-- Logistics services.
-- Notification services.
-
-The exact technologies can be selected during implementation without changing the business Domain.
-
----
-
-## MySQL Adapter
-
-A relational database can be used for transactional information such as:
-
-- Users.
-- Buyers.
-- Sellers.
-- Warehouses.
-- Products.
-- Inventory.
-- Shopping carts.
-- Orders.
-- Invoices.
-- Shipments.
-- Returns.
-- Refunds.
-
-### Components
-
-#### Entities
-
-Represent relational database tables.
-
-#### Repositories
-
-Implement persistence operations.
-
-#### Mappers
-
-Convert Domain Models into database entities and vice versa.
-
-#### Adapters
-
-Implement the Domain output ports.
-
----
-
-## MongoDB Adapter
-
-A document-oriented database can be used for information such as audit records or operational traceability if required by the implementation.
-
-### Components
-
-#### Documents
-
-Represent MongoDB collections.
-
-#### Repositories
-
-Provide document persistence.
-
-#### Mappers
-
-Convert Domain objects into MongoDB documents.
-
-#### Adapters
-
-Implement the corresponding persistence ports.
+Each adapter will map between domain models and its own persistence representation.
 
 ---
 
 # Domain
 
-The Domain layer is the core of NexusMarket.
+The domain is the core of the application. It contains the business rules of the functional specification and does not depend on REST, JSON, SQL, or any persistence technology. It does use Lombok annotations to reduce boilerplate, and Spring's `@Service` stereotype on the service classes.
 
-It contains the business entities, business rules, validations, domain services, value objects, and communication contracts required by the application.
+## Models
 
-The Domain must remain independent from external technologies.
-
-No class inside the Domain should directly depend on:
-
-- Spring.
-- JPA.
-- MySQL.
-- MongoDB.
-- HTTP.
-- REST.
-- JSON.
-- SQL.
-
----
-
-# Domain Models
-
-The Domain Models represent the main business concepts identified in the NexusMarket functional specification.
-
-## User
-
-Represents a person authorized to interact with the system.
-
-Relevant concepts include:
-
-- Identifier.
-- Full name.
-- Email.
-- Role.
-- Status.
-
-Business rules include:
-
-- The user identifier must be unique.
-- The email must be unique.
-- Each user has a single role.
-- A user can only operate according to the permissions of that role.
-
----
-
-## Buyer
-
-Represents a customer who purchases published products.
-
-Relevant concepts include:
-
-- Main address.
-- Additional addresses.
-- Commercial status.
-
-The Buyer must not manage information belonging to other buyers or inventory.
-
----
-
-## Seller
-
-Represents a provider responsible for registering and managing products.
-
-A Seller cannot self-register. Sellers are incorporated into the marketplace by an Administrator.
-
----
-
-## Warehouse
-
-Represents a physical storage location.
-
-The marketplace distinguishes between:
-
-- Marketplace warehouses.
-- Seller warehouses.
-
----
-
-## Product
-
-Represents a physical or digital product offered through the marketplace.
-
-Relevant concepts include:
-
-- Product type.
-- Variants.
-- Publication status.
-
-Product types:
-
-- Physical.
-- Digital.
-
-Physical products require inventory and shipment. Digital products can be delivered immediately after payment.
-
----
-
-## Inventory
-
-Represents available product stock associated with a specific product and warehouse.
-
-Inventory movements include:
-
-- Entry.
-- Reservation.
-- Sale output.
-- Adjustment.
-- Return.
-
-Critical rule:
-
-> Inventory quantities must never become negative.
-
-Inventory cannot be reserved if it does not exist or if it is marked as damaged.
-
----
-
-## Shopping Cart
-
-Represents the buyer's provisional selection of products before creating an order.
-
----
-
-## Order
-
-Represents the formal commercial commitment between the buyer and the marketplace.
-
-The order lifecycle is:
+The 22 entities are organized in four hierarchies plus standalone entities:
 
 ```text
-Cart
-  ↓
-Pending Payment
-  ↓
-Paid
-  ↓
-Dispatched
-  ↓
-Delivered / Finalized
+User (abstract)
+├── Buyer
+├── Seller
+├── LogisticsOperator
+├── Administrator
+└── Supervisor
+
+Warehouse (abstract)
+├── MarketplaceWarehouse
+└── SellerWarehouse
+
+Product (abstract)
+├── PhysicalProduct
+└── DigitalProduct
+
+Inventory, InventoryMovement
+Cart, CartItem
+Order, OrderItem
+Invoice, Shipment
+Return, Refund
 ```
 
-A finalized order cannot be modified.
+Entities are not anemic: state changes happen through methods that validate the rule and raise a domain exception when it is broken (for example `Inventory.reserve()`, `Order.markAsPaid()`, `Refund.approve()`). Every method is documented in the **Behavior** section of the Domain Model document.
+
+## Value Objects
+
+Controlled business concepts are immutable value objects inheriting from `DomainCatalog`, which provides `code`, `name`, and `description`:
+
+`SystemRole`, `UserStatus`, `CommercialStatus`, `ProductType`, `ProductStatus`, `InventoryMovementType`, `OrderStatus`, `ReturnStatus`, `RefundStatus`, and `Currency` (which adds `isoCode` and `symbol`).
+
+`ProductVariant` is a lightweight structural value object (variant type and value) that does not extend `DomainCatalog`, because its values are defined by each seller rather than by the domain.
+
+## Enums
+
+Fixed technical values without business metadata: `WarehouseOwnership`, `ApprovalDecision`, and `NotificationChannel`.
+
+## Exceptions
+
+All business exceptions extend `DomainException`. They are grouped by the rule they protect:
+
+| Area | Exceptions |
+| --- | --- |
+| General | `DomainException`, `EntityNotFoundException`, `InvalidStatusTransitionException`, `InvalidQuantityException` |
+| Users and access (RG-01 to RG-03) | `InvalidUserException`, `InvalidRoleAssignmentException`, `UnauthorizedDomainAccessException`, `SelfRegistrationNotAllowedException`, `BuyerNotEligibleException` |
+| Warehouses and catalog | `InvalidWarehouseException`, `InvalidProductException` |
+| Inventory | `InvalidInventoryException`, `NegativeInventoryException`, `InsufficientInventoryException`, `DamagedInventoryReservationException` |
+| Cart and orders | `InvalidCartException`, `InvalidOrderException`, `OrderAlreadyFinalizedException`, `InvalidInvoiceException`, `InvalidShipmentException` |
+| Returns and refunds | `InvalidReturnException`, `InvalidRefundException`, `SelfApprovalNotAllowedException` |
+
+`UnauthorizedDomainAccessException` is shared across subdomains: it protects RG-03 for products, and also protects who may administer inventory and who may initiate a refund (see Business Rule Enforcement below).
+
+## Ports
+
+Ports are the contracts between the domain and the outside world. The domain owns every interface.
+
+### Input Ports
+
+There are 22 input ports, one per use case, in `domain/ports/in/`. Each one is implemented directly by a domain service.
+
+| Subdomain | Input ports |
+| --- | --- |
+| User management | `RegisterBuyerUseCase`, `RegisterSellerUseCase`, `RegisterStaffUserUseCase`, `ChangeUserStatusUseCase` |
+| Warehouses | `RegisterMarketplaceWarehouseUseCase`, `RegisterSellerWarehouseUseCase` |
+| Catalog | `PublishPhysicalProductUseCase`, `PublishDigitalProductUseCase`, `ManageProductLifecycleUseCase` |
+| Inventory | `RegisterInventoryInflowUseCase`, `AdjustInventoryUseCase`, `MarkInventoryAsDamagedUseCase` |
+| Cart and orders | `ManageCartUseCase`, `CheckoutOrderUseCase`, `ProcessPaymentUseCase`, `DispatchOrderUseCase`, `ConfirmDeliveryUseCase` |
+| Returns and refunds | `RequestReturnUseCase`, `ReviewReturnUseCase`, `InitiateRefundUseCase`, `DecideRefundUseCase`, `ProcessRefundUseCase` |
+
+### Output Ports
+
+There are 14 output ports in `domain/ports/out/`, all repository contracts:
+
+`UserRepositoryPort`, `BuyerRepositoryPort`, `SellerRepositoryPort`, `AdministratorRepositoryPort`, `LogisticsOperatorRepositoryPort`, `WarehouseRepositoryPort`, `ProductRepositoryPort`, `InventoryRepositoryPort`, `CartRepositoryPort`, `OrderRepositoryPort`, `InvoiceRepositoryPort`, `ShipmentRepositoryPort`, `ReturnRepositoryPort`, and `RefundRepositoryPort`.
+
+Notification and payment-gateway ports are not defined yet; payment confirmation is currently modeled inside `ProcessPaymentService`.
+
+## Services
+
+A domain service exists only when an operation coordinates several aggregates. It retrieves the entities through output ports, invokes the behavior each entity already exposes, and persists the result. Logic that affects a single entity stays in the entity.
+
+| Subdomain | Services |
+| --- | --- |
+| `services/user` | `RegisterBuyerService`, `RegisterSellerService`, `RegisterStaffUserService`, `ChangeUserStatusService` |
+| `services/warehouse` | `RegisterMarketplaceWarehouseService`, `RegisterSellerWarehouseService` |
+| `services/catalog` | `PublishPhysicalProductService`, `PublishDigitalProductService`, `ManageProductLifecycleService` |
+| `services/inventory` | `RegisterInventoryInflowService`, `AdjustInventoryService`, `MarkInventoryAsDamagedService` |
+| `services/order` | `ManageCartService`, `CheckoutOrderService`, `ProcessPaymentService`, `DispatchOrderService`, `ConfirmDeliveryService` |
+| `services/refund` | `RequestReturnService`, `ReviewReturnService`, `InitiateRefundService`, `DecideRefundService`, `ProcessRefundService` |
+
+The three inventory services (`RegisterInventoryInflowService`, `AdjustInventoryService`, `MarkInventoryAsDamagedService`) delegate the role and ownership check to `Product.requireInventoryManagedBy(user)` before touching any stock. `InitiateRefundService` delegates the ownership check to `Refund.initiate(...)`, which calls `Order.includesProductOf(seller)`.
+
+The input, output, and exception details of each service are documented as Javadoc on the service class.
 
 ---
 
-## Invoice
+# Infrastructure (planned)
 
-Represents the commercial billing information associated with a purchase.
+Infrastructure will hold technical configuration and no business logic:
 
----
-
-## Shipment
-
-Represents the logistics process required to deliver physical products.
-
-The logistics process includes:
-
-- Preparation.
-- Packaging.
-- Dispatch.
-- Transportation.
-- Delivery confirmation.
-
----
-
-## Return
-
-Represents a product return process initiated according to the business rules.
-
----
-
-## Refund
-
-Represents the reimbursement associated with an approved return or other valid business condition.
-
----
-
-# Value Objects
-
-Value Objects represent immutable business concepts that are identified by their value rather than by a unique identity.
-
-Possible NexusMarket Value Objects include:
-
-- `UserId`
-- `Email`
-- `Address`
-- `ProductId`
-- `OrderId`
-- `WarehouseId`
-- `Money`
-- `Quantity`
-
-These objects can encapsulate validation rules and prevent invalid values from entering the Domain.
-
----
-
-# Enums
-
-Enums represent controlled values that do not require complex independent behavior.
-
-Possible NexusMarket enums include:
-
-- `UserRole`
-- `UserStatus`
-- `ProductType`
-- `ProductStatus`
-- `InventoryMovementType`
-- `OrderStatus`
-- `WarehouseType`
-- `ReturnStatus`
-- `RefundStatus`
-
-Examples of `UserRole` values:
-
-```text
-BUYER
-SELLER
-LOGISTICS_OPERATOR
-ADMINISTRATOR
-SUPERVISOR
-```
-
-Examples of `OrderStatus` values:
-
-```text
-CART
-PENDING_PAYMENT
-PAID
-DISPATCHED
-DELIVERED
-FINALIZED
-```
-
----
-
-# Domain Services
-
-Domain Services contain business logic that does not naturally belong to a single entity.
-
-Possible NexusMarket services include:
-
-## InventoryService
-
-Responsible for operations such as:
-
-- Reserve inventory.
-- Register inventory entry.
-- Register sale output.
-- Register adjustments.
-- Process returned inventory.
-- Prevent negative inventory.
-
-## OrderService
-
-Responsible for:
-
-- Creating orders.
-- Validating order transitions.
-- Confirming payment-related transitions.
-- Preventing changes to finalized orders.
-
-## SellerRegistrationService
-
-Responsible for:
-
-- Registering sellers through the Administrator.
-- Associating the seller's first warehouse.
-
-## LogisticsService
-
-Responsible for coordinating:
-
-- Order preparation.
-- Packaging.
-- Dispatch.
-- Delivery confirmation.
-
-## RefundService
-
-Responsible for:
-
-- Validating refund requests.
-- Coordinating approved refunds.
-- Maintaining refund business rules.
-
----
-
-# Ports
-
-Ports define the communication contracts between the Domain and external components.
-
-The Domain owns these interfaces.
-
----
-
-## Input Ports
-
-Input Ports represent the use cases that NexusMarket supports.
-
-Possible Input Ports include:
-
-- `RegisterBuyerUseCase`
-- `RegisterSellerUseCase`
-- `CreateWarehouseUseCase`
-- `CreateProductUseCase`
-- `ManageInventoryUseCase`
-- `ManageCartUseCase`
-- `CreateOrderUseCase`
-- `ProcessPaymentUseCase`
-- `ManageShipmentUseCase`
-- `ManageReturnUseCase`
-- `ProcessRefundUseCase`
-- `GenerateAdministrativeReportUseCase`
-
-Input Ports define what the system can do.
-
----
-
-## Output Ports
-
-Output Ports represent dependencies required by the Domain.
-
-Possible Output Ports include:
-
-- `UserRepository`
-- `BuyerRepository`
-- `SellerRepository`
-- `WarehouseRepository`
-- `ProductRepository`
-- `InventoryRepository`
-- `CartRepository`
-- `OrderRepository`
-- `InvoiceRepository`
-- `ShipmentRepository`
-- `ReturnRepository`
-- `RefundRepository`
-- `ReportRepository`
-- `PaymentGateway`
-- `NotificationService`
-
-Output Ports define what the Domain needs from external systems.
-
----
-
-# Domain Exceptions
-
-Business exceptions belong exclusively to the Domain.
-
-Possible NexusMarket exceptions include:
-
-- `DuplicateUserException`
-- `InvalidRoleException`
-- `SellerSelfRegistrationException`
-- `InsufficientInventoryException`
-- `NegativeInventoryException`
-- `InvalidOrderStateException`
-- `FinalizedOrderModificationException`
-- `InvalidProductStatusException`
-- `InvalidRefundException`
-
-These exceptions represent violations of NexusMarket business rules.
-
----
-
-# Infrastructure
-
-Infrastructure contains the technical configuration required by the application.
-
-It must not contain business logic.
-
----
-
-## Config
-
-Responsible for application configuration.
-
-Examples:
-
-- REST configuration.
-- Serialization.
-- Environment variables.
-- Dependency injection configuration.
-
----
-
-## Database
-
-Responsible for database configuration.
-
-Examples:
-
-- MySQL configuration.
-- MongoDB configuration.
-- Database connections.
-- Connection pools.
-- Database initialization.
-
----
-
-## Security
-
-Responsible for technical authentication and authorization mechanisms.
-
-Examples:
-
-- JWT configuration.
-- Password encoding.
-- Authentication filters.
-- Authorization configuration.
-
-The functional specification requires every operation to be executed by an authenticated user, while the technical authentication mechanism is outside the scope of that specification.
+- **Config:** application and serialization configuration.
+- **Database:** connection and initialization settings.
+- **Security:** authentication and authorization plumbing. Technical authentication is outside the functional scope of the specification; this layer only identifies the authenticated user so the domain can enforce RG-01 to RG-03.
 
 ---
 
 # Dependency Flow
 
-Dependencies must always point toward the Domain.
+Dependencies always point toward the domain.
 
 ```text
-REST Controller
-       │
-       ▼
-Input Port / Use Case
-       │
-       ▼
-Domain Service / Domain Model
-       │
-       ▼
-Output Port
-       │
-       ▼
-Persistence Adapter / External Adapter
-       │
-       ▼
-Database / External System
-```
-
-The Domain never depends on Adapters or Infrastructure.
-
----
-
-# NexusMarket Main Business Flow
-
-The architecture supports the business flow defined in the functional specification:
-
-```text
-Administrator
-     │
-     ▼
-Register Seller
-     │
-     ▼
-Create Seller Warehouse
-     │
-     ▼
-Seller Registers Products
-     │
-     ▼
-Register Initial Inventory
-     │
-     ▼
-Publish Products
-     │
-     ▼
-Buyer Selects Products
-     │
-     ▼
-Shopping Cart
-     │
-     ▼
-Create Order
-     │
-     ▼
-Payment Validation
-     │
-     ▼
-Order Paid
-     │
-     ▼
-Preparation and Packaging
-     │
-     ▼
-Dispatch
-     │
-     ▼
-Transportation
-     │
-     ▼
-Delivery Confirmation
-     │
-     ▼
-Order Finalized
+REST Controller (planned)
+        │
+        ▼
+Input Port (UseCase interface)
+        │
+        ▼
+Domain Service ──────► Domain Models (behavior and business rules)
+        │
+        ▼
+Output Port (RepositoryPort interface)
+        │
+        ▼
+Persistence Adapter (planned)
+        │
+        ▼
+Database
 ```
 
 ---
 
-# Role-Based Access
+# Main Business Flow
 
-NexusMarket defines five business participants:
+The functional flow of the specification maps to services as follows:
 
-| Role | Main Responsibility |
-|---|---|
-| Buyer | Purchases published products. |
-| Seller | Registers and manages products. |
-| Logistics Operator | Operates warehouses and dispatch processes. |
-| Administrator | Manages sellers and warehouses. |
-| Supervisor | Performs operational consultation and monitoring. |
+```text
+RegisterSellerService / RegisterMarketplaceWarehouseService   1. Onboarding
+PublishPhysicalProductService / PublishDigitalProductService  2-4. Catalog, initial stock, publication
+ManageCartService                                             5. Product selection
+CheckoutOrderService                                          5. Order created, inventory reserved
+ProcessPaymentService                                         6. Payment, invoice, sale confirmed
+DispatchOrderService                                          7. Dispatch by the logistics operator
+ConfirmDeliveryService                                        8. Order finalized (immutable)
+RequestReturnService → ReviewReturnService
+   → InitiateRefundService → DecideRefundService
+   → ProcessRefundService                                     Post-sale
+```
 
-Each user has a single role and may only manage information corresponding to that role.
+`CheckoutOrderService` is the most complex service: it coordinates the cart being consumed, the order being created, and the inventory reserved for every physical product.
 
 ---
 
-# Architectural Mapping to Functional Domains
+# Business Rule Enforcement
 
-| Functional Domain | Main Domain Components |
-|---|---|
-| User Management | User, UserId, Email, UserRole, UserStatus, UserRepository |
-| Buyer Management | Buyer, Address, BuyerRepository |
-| Seller Management | Seller, SellerRegistrationService, SellerRepository |
-| Warehouse Management | Warehouse, WarehouseType, WarehouseRepository |
-| Catalog Management | Product, ProductType, ProductStatus, ProductRepository |
-| Inventory Management | Inventory, Quantity, InventoryMovementType, InventoryService |
-| Shopping Cart | ShoppingCart, CartItem, CartRepository |
-| Order Management | Order, OrderStatus, OrderService, OrderRepository |
-| Billing | Invoice, InvoiceRepository |
-| Logistics | Shipment, LogisticsService, ShipmentRepository |
-| Returns | Return, ReturnStatus, ReturnRepository |
-| Refunds | Refund, RefundStatus, RefundService, RefundRepository |
-| Administrative Reports | ReportService, ReportRepository |
+| Rule from the specification | Where it is enforced |
+| --- | --- |
+| RG-01: every operation is executed by an active, authenticated user | `User.requireActive()`, called by entities and services |
+| RG-02: each user has a single role | `User.register()` requires exactly one `SystemRole` |
+| RG-03: no participant operates outside its role | Role checks in `Administrator`, `LogisticsOperator`, `Supervisor`; ownership check in `Seller.requireOwnershipOf()` |
+| Sellers cannot self-register | `Seller.onboardedBy()` and `Administrator.registerSeller()` |
+| Inventory is administered only by the owning Seller or a Logistics Operator (Responsibility Matrix, Section 12) | `Product.requireInventoryManagedBy(user)`, called by the three inventory services |
+| Inventory can never be negative | `Inventory` methods raise `NegativeInventoryException` |
+| Damaged or non-existent stock cannot be reserved | `Inventory.reserve()` |
+| A finalized order cannot be modified | `Order.requireModifiable()` raises `OrderAlreadyFinalizedException` |
+| Order lifecycle: Cart → Pending Payment → Paid → Dispatched → Delivered/Finalized | Transition checks in `Order` |
+| A refund can only be initiated by a Seller who sold a product of the returned order | `Order.includesProductOf(seller)`, called from `Refund.initiate()` |
+| The seller who initiates a refund cannot approve it | `Refund.approve()` and `Refund.reject()` raise `SelfApprovalNotAllowedException` |
+
+Mapping each use case to the roles allowed to invoke it (Responsibility Matrix, Section 12 of the specification) is otherwise the responsibility of the input adapter layer, which is planned.
+
+---
+
+# Architectural Mapping to Functional Objectives
+
+| Objective | Components |
+| --- | --- |
+| OBJ-01 Users | `User`, `SystemRole`, `UserStatus`, `RegisterStaffUserService`, `ChangeUserStatusService` |
+| OBJ-02 Sellers | `Seller`, `Administrator`, `RegisterSellerService` |
+| OBJ-03 Buyers | `Buyer`, `CommercialStatus`, `RegisterBuyerService` |
+| OBJ-04 Warehouses | `Warehouse`, `MarketplaceWarehouse`, `SellerWarehouse`, `WarehouseOwnership`, warehouse services |
+| OBJ-05 Catalog | `Product`, `PhysicalProduct`, `DigitalProduct`, `ProductStatus`, `ProductVariant`, catalog services |
+| OBJ-06 Inventory | `Inventory`, `InventoryMovement`, `InventoryMovementType`, inventory services |
+| OBJ-07 Cart | `Cart`, `CartItem`, `ManageCartService` |
+| OBJ-08 Orders | `Order`, `OrderItem`, `OrderStatus`, `CheckoutOrderService`, `ConfirmDeliveryService` |
+| OBJ-09 Invoicing | `Invoice`, `Currency`, `ProcessPaymentService` |
+| OBJ-10 Logistics | `Shipment`, `DispatchOrderService` |
+| OBJ-11 Returns and refunds | `Return`, `Refund`, `ReturnStatus`, `RefundStatus`, return and refund services |
+| OBJ-12 Administrative reports | Reporting adapter and `Supervisor` role (planned; not a domain service) |
 
 ---
 
 # Architectural Constraints
 
-The following rules must always be respected:
-
-1. Business logic belongs exclusively to the Domain layer.
+1. Business logic belongs to the domain layer.
 2. Controllers must not contain business rules.
-3. DTOs must never enter the Domain layer.
-4. Persistence entities must never be exposed directly through the API.
-5. Communication between external technologies and the Domain must occur through Ports.
-6. Adapters implement Ports but do not define business rules.
-7. Infrastructure depends on the Domain, never the opposite.
-8. Dependencies must point toward the Domain.
-9. Business entities must remain framework-independent.
-10. The Domain must be testable without requiring infrastructure components.
-11. Inventory must never become negative.
-12. A finalized order cannot be modified.
-13. Sellers cannot self-register.
-14. Each user must have exactly one role.
-15. Users cannot manage information outside their assigned role.
-16. User identification data and email must be unique.
-
----
-
-# Non-Functional Architectural Considerations
-
-## Maintainability
-
-The separation between Domain, Application, Adapters, and Infrastructure makes the system easier to modify without affecting unrelated components.
-
-## Testability
-
-Domain rules can be tested independently from databases, REST APIs, and infrastructure.
-
-## Scalability
-
-The architecture allows NexusMarket to evolve as the number of users, products, orders, warehouses, and transactions increases.
-
-## Technology Independence
-
-The business rules are not tied to a particular framework, database, or communication protocol.
-
-## Security
-
-Authentication and authorization mechanisms are isolated in the Infrastructure layer while business-level role restrictions remain part of the application and Domain rules.
-
-## Traceability
-
-The architecture maps the functional domains from the NexusMarket specification to explicit Domain Models, Services, Ports, and Adapters.
+3. DTOs never enter the domain.
+4. Persistence entities are never exposed through the API.
+5. Communication between the domain and technology happens only through ports.
+6. Adapters implement ports and never define business rules.
+7. Infrastructure and adapters depend on the domain, never the opposite.
+8. Domain models expose behavior methods; state is not changed from outside the domain by direct assignment.
+9. The domain must be testable without infrastructure components.
+10. A finalized order is immutable.
 
 ---
 
 # Benefits
 
-This architecture provides:
-
-- Technology independence.
-- High maintainability.
-- Clear separation of concerns.
-- Improved testability.
-- Easier scalability.
-- Better support for Domain-Driven Design.
-- Easy replacement of frameworks or databases.
-- Reusable business logic.
-- Clear business boundaries.
-- Strong control over business rules.
-- Better traceability between requirements and implementation.
-
----
-
-# Conclusion
-
-The proposed NexusMarket architecture applies the same architectural direction used by the reference project: Hexagonal Architecture with Domain-Driven Design.
-
-The Domain is the center of the solution and contains the business concepts and rules of the marketplace. Input Adapters expose use cases to external clients, Output Adapters connect the system with persistence and external services, and Infrastructure contains technical configuration.
-
-This structure provides a clear foundation for implementing the NexusMarket functional requirements while keeping the core business logic independent from implementation technologies.
+- Business rules are enforced in one place, the domain, and are reusable from any delivery channel.
+- Technology can be replaced (database, framework, delivery mechanism) without touching the business rules.
+- The domain can be tested with in-memory implementations of the output ports.
+- The design scales by adding new use cases, one input port and one service at a time.

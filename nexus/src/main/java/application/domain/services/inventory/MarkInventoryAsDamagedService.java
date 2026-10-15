@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
  * <p>Input: the identifier of the user performing the operation, the product and warehouse identifiers, and
  * the quantity to mark as damaged.
  * <p>Output: the persisted {@link Inventory} record, with the given quantity moved from available to damaged.
- * <p>Exceptions: {@link EntityNotFoundException} when the user, product, or inventory record do not exist;
+ * <p>Exceptions: {@link application.domain.exceptions.UnauthorizedDomainAccessException} when the user is neither
+ * the owning Seller nor a Logistics Operator, enforced by {@link PhysicalProduct#requireInventoryManagedBy};
+ * {@link EntityNotFoundException} when the user, product, or inventory record do not exist;
  * {@link application.domain.exceptions.InsufficientInventoryException} when the quantity exceeds what is
  * available, enforced by {@link Inventory#markAsDamaged}.
  */
@@ -37,10 +39,11 @@ public class MarkInventoryAsDamagedService implements MarkInventoryAsDamagedUseC
                                    String warehouseIdentifier, int quantity) {
         User performedBy = userRepositoryPort.findByIdentifier(performedByIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("User"));
-        performedBy.requireActive();
 
         PhysicalProduct product = productRepositoryPort.findPhysicalByIdentifier(productIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("PhysicalProduct"));
+        product.requireInventoryManagedBy(performedBy);
+
         Warehouse warehouse = warehouseRepositoryPort.findByIdentifier(warehouseIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Warehouse"));
         Inventory inventory = inventoryRepositoryPort.findByProductAndWarehouse(product, warehouse)

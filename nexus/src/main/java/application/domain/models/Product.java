@@ -2,9 +2,11 @@ package application.domain.models;
 
 import application.domain.exceptions.InvalidProductException;
 import application.domain.exceptions.InvalidStatusTransitionException;
+import application.domain.exceptions.UnauthorizedDomainAccessException;
 import application.domain.valueobjects.ProductStatus;
 import application.domain.valueobjects.ProductType;
 import application.domain.valueobjects.ProductVariant;
+import application.domain.valueobjects.SystemRole;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -103,6 +105,26 @@ public abstract class Product {
             throw new InvalidProductException(
                     "Product " + identifier + " is not available for purchase.");
         }
+    }
+
+    /**
+     * Inventory is administered only by the owning Seller or by a Logistics Operator
+     * (Responsibility Matrix, Section 12 of the specification).
+     */
+    public void requireInventoryManagedBy(User user) {
+        if (user == null) {
+            throw new UnauthorizedDomainAccessException("An inventory operation requires a user.");
+        }
+        user.requireActive();
+        if (user.hasRole(SystemRole.LOGISTICS_OPERATOR)) {
+            return;
+        }
+        if (user.hasRole(SystemRole.SELLER) && user instanceof Seller seller) {
+            seller.requireOwnershipOf(this);
+            return;
+        }
+        throw new UnauthorizedDomainAccessException(
+                "Only the owning Seller or a Logistics Operator can administer inventory.");
     }
 
     private String statusCode() {
