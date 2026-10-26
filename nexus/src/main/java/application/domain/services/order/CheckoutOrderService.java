@@ -1,5 +1,6 @@
 package application.domain.services.order;
 
+import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.exceptions.InvalidProductException;
 import application.domain.models.Buyer;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Service;
  * Implements {@link CheckoutOrderUseCase}.
  *
  * <p>Input: the buyer's identifier and the identifier to assign to the new order.
- * <p>Output: the persisted {@link Order}, in {@code CART} status, with inventory already reserved for every
+ * <p>Output: the persisted {@link Order}, in {@code PENDING_PAYMENT} status, with inventory already reserved for every
  * physical product it contains.
  * <p>Exceptions: {@link EntityNotFoundException} when the buyer does not exist or a physical item has no
  * inventory record; {@link application.domain.exceptions.BuyerNotEligibleException} when the buyer cannot
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
  *
  * <p>This service coordinates three aggregates in a single business transaction: the {@link Cart} being
  * consumed, the {@link Order} being created, and the {@link Inventory} being reserved for every physical item.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateEntityException} when the order identifier is already in use.
  */
 @Service
 @RequiredArgsConstructor
@@ -43,15 +45,24 @@ public class CheckoutOrderService implements CheckoutOrderUseCase {
         Buyer buyer = buyerRepositoryPort.findByIdentifier(buyerIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Buyer"));
 
+        requireUnused(orderIdentifier);
+
         Cart cart = buyer.getCart();
         Order order = new Order();
         order.placeFrom(orderIdentifier, buyer, cart);
 
         reserveInventoryFor(cart);
+        order.submitForPayment();
 
         cart.clear();
         buyerRepositoryPort.save(buyer);
         return orderRepositoryPort.save(order);
+    }
+
+    private void requireUnused(String value) {
+        if (orderRepositoryPort.existsByIdentifier(value)) {
+            throw new DuplicateEntityException("Order " + value + " is already registered.");
+        }
     }
 
     private void reserveInventoryFor(Cart cart) {

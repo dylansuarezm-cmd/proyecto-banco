@@ -1,5 +1,6 @@
 package application.domain.services.refund;
 
+import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Refund;
 import application.domain.models.Return;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
  * {@link application.domain.exceptions.InvalidRefundException} when the return is not approved or the amount
  * is not positive, and {@link application.domain.exceptions.UnauthorizedDomainAccessException} when the seller
  * sold no product of the returned order, both enforced by {@link Refund#initiate}.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateEntityException} when the refund identifier is in use or the return already has a refund.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,6 +40,13 @@ public class InitiateRefundService implements InitiateRefundUseCase {
                 .orElseThrow(() -> new EntityNotFoundException("Seller"));
         Return relatedReturn = returnRepositoryPort.findByIdentifier(returnIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Return"));
+
+        if (refundRepositoryPort.existsByIdentifier(refundIdentifier)) {
+            throw new DuplicateEntityException("Refund " + refundIdentifier + " is already registered.");
+        }
+        if (refundRepositoryPort.existsByRelatedReturn(relatedReturn)) {
+            throw new DuplicateEntityException("Return " + returnIdentifier + " already has a refund.");
+        }
 
         Refund refund = new Refund();
         refund.initiate(refundIdentifier, relatedReturn, seller, amount);

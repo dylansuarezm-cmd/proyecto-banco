@@ -1,5 +1,6 @@
 package application.domain.services.catalog;
 
+import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.PhysicalProduct;
 import application.domain.models.Seller;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
  * <p>Exceptions: {@link EntityNotFoundException} when the seller or warehouse do not exist;
  * {@link application.domain.exceptions.NegativeInventoryException} when the initial quantity is negative,
  * enforced by {@link Inventory#open}.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateEntityException} when the product identifier is already in use.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,6 +44,8 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
         Warehouse warehouse = warehouseRepositoryPort.findByIdentifier(warehouseIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Warehouse"));
 
+        requireUnused(productIdentifier);
+
         PhysicalProduct product = new PhysicalProduct();
         product.register(productIdentifier, name, description);
         seller.publish(product);
@@ -53,5 +57,11 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
         inventoryRepositoryPort.save(inventory);
 
         return product;
+    }
+
+    private void requireUnused(String value) {
+        if (productRepositoryPort.existsByIdentifier(value)) {
+            throw new DuplicateEntityException("Product " + value + " is already registered.");
+        }
     }
 }

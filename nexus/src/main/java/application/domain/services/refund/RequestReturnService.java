@@ -1,5 +1,6 @@
 package application.domain.services.refund;
 
+import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Buyer;
 import application.domain.models.Order;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
  * <p>Exceptions: {@link EntityNotFoundException} when the buyer or order do not exist;
  * {@link application.domain.exceptions.InvalidReturnException} when the order does not belong to the buyer or
  * is not yet finalized, enforced by {@link Return#request}.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateEntityException} when the return identifier is in use or the order already has a return.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,6 +37,13 @@ public class RequestReturnService implements RequestReturnUseCase {
                 .orElseThrow(() -> new EntityNotFoundException("Buyer"));
         Order order = orderRepositoryPort.findByIdentifier(orderIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Order"));
+
+        if (returnRepositoryPort.existsByIdentifier(returnIdentifier)) {
+            throw new DuplicateEntityException("Return " + returnIdentifier + " is already registered.");
+        }
+        if (returnRepositoryPort.existsByOrder(order)) {
+            throw new DuplicateEntityException("Order " + orderIdentifier + " already has a return request.");
+        }
 
         Return returnRequest = new Return();
         returnRequest.request(returnIdentifier, order, buyer, reason);

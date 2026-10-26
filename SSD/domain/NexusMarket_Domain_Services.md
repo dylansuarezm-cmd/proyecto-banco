@@ -27,15 +27,15 @@ The service documentation is therefore divided conceptually into the following s
 
 ## Register Buyer
 
-Creates a new `Buyer`, establishes its commercial profile and delivery address, and opens the `Cart` associated with it.
+Creates a new `Buyer`, establishes its commercial profile and delivery address, and opens the `Cart` associated with it. Rejects the registration when the identifier or the email already belongs to any other user.
 
 ## Register Seller
 
-Creates a new `Seller` onboarded by an `Administrator`. A seller can never register itself (RG-02, Dominio 3 business rule).
+Creates a new `Seller` onboarded by an `Administrator`. A seller can never register itself (RG-02, Dominio 3 business rule). Rejects the registration when the identifier or the email already belongs to any other user, whatever its role.
 
 ## Register Staff User
 
-Creates a system user representing an internal marketplace participant — `LogisticsOperator`, `Administrator`, or `Supervisor`.
+Creates a system user representing an internal marketplace participant — `LogisticsOperator`, `Administrator`, or `Supervisor`. Rejects the registration when the identifier or the email already belongs to any other user, whatever its role.
 
 ## Change User Status
 
@@ -47,11 +47,11 @@ Changes the operational status of any user — `Buyer`, `Seller`, or staff — s
 
 ## Register Marketplace Warehouse
 
-Creates a new warehouse operated directly by NexusMarket, registered by an `Administrator`.
+Creates a new warehouse operated directly by NexusMarket, registered by an `Administrator`. The warehouse identifier must be unique.
 
 ## Register Seller Warehouse
 
-Creates a new warehouse owned and operated by a `Seller`.
+Creates a new warehouse owned and operated by a `Seller`. The warehouse identifier must be unique.
 
 ---
 
@@ -59,11 +59,11 @@ Creates a new warehouse owned and operated by a `Seller`.
 
 ## Publish Physical Product
 
-Creates a new physical product for a seller's catalog and opens its initial `Inventory` record in one of the seller's warehouses.
+Creates a new physical product for a seller's catalog and opens its initial `Inventory` record in one of the seller's warehouses. The product identifier must be unique.
 
 ## Publish Digital Product
 
-Creates a new digital product for a seller's catalog, together with the asset delivered immediately after payment.
+Creates a new digital product for a seller's catalog, together with the asset delivered immediately after payment. The product identifier must be unique.
 
 ## Manage Product Lifecycle
 
@@ -95,15 +95,15 @@ Adds, updates, or removes products in a buyer's cart, validating that every sele
 
 ## Checkout Order
 
-Converts a buyer's cart into a formal `Order` and reserves the corresponding `Inventory` for every physical product included, coordinating the `Cart`, `Order`, and `Inventory` aggregates as a single business transaction.
+Converts a buyer's cart into a formal `Order` and reserves the corresponding `Inventory` for every physical product included, coordinating the `Cart`, `Order`, and `Inventory` aggregates as a single business transaction. The new order is submitted for payment (`PENDING_PAYMENT`) and its identifier must not be in use.
 
 ## Process Payment
 
-Confirms payment for a pending order, issues its `Invoice`, and confirms the sale outflow of the inventory previously reserved for it.
+Confirms payment for a pending order, issues its `Invoice` (whose identifier must be unique), and confirms the sale outflow of the inventory previously reserved for it.
 
 ## Dispatch Order
 
-Creates the `Shipment` for a paid order and registers its dispatch from the origin warehouse by a `LogisticsOperator`.
+Creates the `Shipment` for a paid order and registers its dispatch from the origin warehouse by a `LogisticsOperator`. The shipment identifier is mandatory and unique.
 
 ## Confirm Delivery
 
@@ -115,7 +115,7 @@ Confirms the delivery of a dispatched order, closing both the `Order` and its as
 
 ## Request Return
 
-Creates a `Return` request for a finalized order, validating that the requesting buyer is the one who placed it.
+Creates a `Return` request for a finalized order, validating that the requesting buyer is the one who placed it. An order can have only one return, and the return identifier must be unique.
 
 ## Review Return
 
@@ -123,7 +123,7 @@ Approves or rejects a pending return request.
 
 ## Initiate Refund
 
-Registers a `Refund` for an approved return. Only the `Seller` responsible for the returned product may initiate it, and the return must already be approved.
+Registers a `Refund` for an approved return. Only the `Seller` responsible for the returned product may initiate it, and the return must already be approved. A return can have only one refund, and the refund identifier must be unique.
 
 ## Decide Refund
 

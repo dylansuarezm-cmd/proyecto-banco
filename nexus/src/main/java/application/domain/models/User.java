@@ -27,9 +27,12 @@ public abstract class User {
         if (role == null) {
             throw new InvalidRoleAssignmentException("A user must be created with exactly one role.");
         }
-        this.identifier = identifier;
-        this.fullName = fullName;
-        this.email = email;
+        if (!email.contains("@") || email.startsWith("@") || email.endsWith("@")) {
+            throw new InvalidUserException("User email is not a valid address.");
+        }
+        this.identifier = identifier.trim();
+        this.fullName = fullName.trim();
+        this.email = email.trim().toLowerCase();
         this.role = role;
         this.status = UserStatus.ACTIVE;
     }

@@ -5,4 +5,6 @@ import application.domain.models.Shipment;
 public interface ShipmentRepositoryPort {
 
     Shipment save(Shipment shipment);
+
+    boolean existsByIdentifier(String identifier);
 }

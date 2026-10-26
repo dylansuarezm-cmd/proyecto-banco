@@ -1,5 +1,6 @@
 package application.domain.services.order;
 
+import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Inventory;
 import application.domain.models.Invoice;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
  * <p>Exceptions: {@link EntityNotFoundException} when the order does not exist or a physical item has no
  * inventory record; {@link application.domain.exceptions.InvalidStatusTransitionException} when the order is
  * not {@code PENDING_PAYMENT}, enforced by {@link Order#markAsPaid}.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateEntityException} when the invoice identifier is already in use.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,6 +39,8 @@ public class ProcessPaymentService implements ProcessPaymentUseCase {
         Order order = orderRepositoryPort.findByIdentifier(orderIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Order"));
 
+        requireUnused(invoiceIdentifier);
+
         Invoice invoice = new Invoice();
         invoice.issueFor(invoiceIdentifier, order, currency);
         order.markAsPaid(invoice);
@@ -44,6 +48,12 @@ public class ProcessPaymentService implements ProcessPaymentUseCase {
 
         confirmReservedInventory(order);
         return orderRepositoryPort.save(order);
+    }
+
+    private void requireUnused(String value) {
+        if (invoiceRepositoryPort.existsByIdentifier(value)) {
+            throw new DuplicateEntityException("Invoice " + value + " is already registered.");
+        }
     }
 
     private void confirmReservedInventory(Order order) {

@@ -78,7 +78,7 @@ src/
             │   ├── models/                        22 entities
             │   ├── valueobjects/                  12 value objects
             │   ├── enums/                         3 enumerations
-            │   ├── exceptions/                    23 business exceptions
+            │   ├── exceptions/                    25 business exceptions
             │   ├── ports/
             │   │   ├── in/                        22 use case interfaces
             │   │   └── out/                       14 repository interfaces
@@ -174,8 +174,8 @@ All business exceptions extend `DomainException`. They are grouped by the rule t
 
 | Area | Exceptions |
 | --- | --- |
-| General | `DomainException`, `EntityNotFoundException`, `InvalidStatusTransitionException`, `InvalidQuantityException` |
-| Users and access (RG-01 to RG-03) | `InvalidUserException`, `InvalidRoleAssignmentException`, `UnauthorizedDomainAccessException`, `SelfRegistrationNotAllowedException`, `BuyerNotEligibleException` |
+| General | `DomainException`, `EntityNotFoundException`, `InvalidStatusTransitionException`, `InvalidQuantityException`, `DuplicateEntityException` |
+| Users and access (RG-01 to RG-03) | `InvalidUserException`, `InvalidRoleAssignmentException`, `UnauthorizedDomainAccessException`, `SelfRegistrationNotAllowedException`, `BuyerNotEligibleException`, `DuplicateUserException` |
 | Warehouses and catalog | `InvalidWarehouseException`, `InvalidProductException` |
 | Inventory | `InvalidInventoryException`, `NegativeInventoryException`, `InsufficientInventoryException`, `DamagedInventoryReservationException` |
 | Cart and orders | `InvalidCartException`, `InvalidOrderException`, `OrderAlreadyFinalizedException`, `InvalidInvoiceException`, `InvalidShipmentException` |
@@ -289,13 +289,17 @@ RequestReturnService → ReviewReturnService
 | --- | --- |
 | RG-01: every operation is executed by an active, authenticated user | `User.requireActive()`, called by entities and services |
 | RG-02: each user has a single role | `User.register()` requires exactly one `SystemRole` |
+| Identity document and email are unique across the platform, whatever the role (Section 11) | `RegisterBuyerService`, `RegisterSellerService` and `RegisterStaffUserService` check `UserRepositoryPort.existsByIdentifier()` and `existsByEmail()` and raise `DuplicateUserException`; `User.register()` normalizes the email (trimmed, lower case) and rejects malformed addresses |
+| Identifiers of warehouses, products, orders, invoices, shipments, returns and refunds are unique | Each creating service checks `existsByIdentifier()` on its output port and raises `DuplicateEntityException` |
+| An order has at most one return, and a return has at most one refund | `ReturnRepositoryPort.existsByOrder()` in `RequestReturnService`; `RefundRepositoryPort.existsByRelatedReturn()` in `InitiateRefundService` |
+| A shipment always carries an identifier | `Shipment.prepare()` requires it; `LogisticsOperator.dispatch()` receives it |
 | RG-03: no participant operates outside its role | Role checks in `Administrator`, `LogisticsOperator`, `Supervisor`; ownership check in `Seller.requireOwnershipOf()` |
 | Sellers cannot self-register | `Seller.onboardedBy()` and `Administrator.registerSeller()` |
 | Inventory is administered only by the owning Seller or a Logistics Operator (Responsibility Matrix, Section 12) | `Product.requireInventoryManagedBy(user)`, called by the three inventory services |
 | Inventory can never be negative | `Inventory` methods raise `NegativeInventoryException` |
 | Damaged or non-existent stock cannot be reserved | `Inventory.reserve()` |
 | A finalized order cannot be modified | `Order.requireModifiable()` raises `OrderAlreadyFinalizedException` |
-| Order lifecycle: Cart → Pending Payment → Paid → Dispatched → Delivered/Finalized | Transition checks in `Order` |
+| Order lifecycle: Cart → Pending Payment → Paid → Dispatched → Delivered/Finalized | Transition checks in `Order`; `CheckoutOrderService` calls `Order.submitForPayment()` so a confirmed order waits in Pending Payment |
 | A refund can only be initiated by a Seller who sold a product of the returned order | `Order.includesProductOf(seller)`, called from `Refund.initiate()` |
 | The seller who initiates a refund cannot approve it | `Refund.approve()` and `Refund.reject()` raise `SelfApprovalNotAllowedException` |
 

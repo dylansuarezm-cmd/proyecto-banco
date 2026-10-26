@@ -1,5 +1,6 @@
 package application.domain.services.order;
 
+import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.LogisticsOperator;
 import application.domain.models.Order;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
  * {@link application.domain.exceptions.InvalidStatusTransitionException} when the order is not {@code PAID},
  * enforced by {@link Order#dispatch}; {@link application.domain.exceptions.InvalidOrderException} when the
  * order has no physical items to dispatch.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateEntityException} when the shipment identifier is already in use.
  */
 @Service
 @RequiredArgsConstructor
@@ -44,9 +46,15 @@ public class DispatchOrderService implements DispatchOrderUseCase {
         Warehouse warehouse = warehouseRepositoryPort.findByIdentifier(warehouseIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Warehouse"));
 
-        Shipment shipment = operator.dispatch(order, warehouse, LocalDateTime.now());
-        shipment.setIdentifier(shipmentIdentifier);
+        requireUnused(shipmentIdentifier);
+        Shipment shipment = operator.dispatch(shipmentIdentifier, order, warehouse, LocalDateTime.now());
         shipmentRepositoryPort.save(shipment);
         return orderRepositoryPort.save(order);
+    }
+
+    private void requireUnused(String value) {
+        if (shipmentRepositoryPort.existsByIdentifier(value)) {
+            throw new DuplicateEntityException("Shipment " + value + " is already registered.");
+        }
     }
 }

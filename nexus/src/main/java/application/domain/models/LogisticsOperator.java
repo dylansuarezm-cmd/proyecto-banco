@@ -16,13 +16,14 @@ public class LogisticsOperator extends User {
     /**
      * Performs the physical dispatch of an order from a warehouse.
      */
-    public Shipment dispatch(Order order, Warehouse originWarehouse, LocalDateTime dispatchDate) {
+    public Shipment dispatch(String shipmentIdentifier, Order order, Warehouse originWarehouse,
+                             LocalDateTime dispatchDate) {
         requireOperatorRole();
         if (order == null || originWarehouse == null) {
             throw new InvalidShipmentException("Order and origin warehouse must be provided.");
         }
         Shipment shipment = new Shipment();
-        shipment.prepare(order, this, originWarehouse, dispatchDate);
+        shipment.prepare(shipmentIdentifier, order, this, originWarehouse, dispatchDate);
         order.dispatch(shipment);
         return shipment;
     }

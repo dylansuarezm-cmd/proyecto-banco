@@ -8,4 +8,6 @@ public interface WarehouseRepositoryPort {
     Warehouse save(Warehouse warehouse);
 
     Optional<Warehouse> findByIdentifier(String identifier);
+
+    boolean existsByIdentifier(String identifier);
 }

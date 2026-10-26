@@ -24,8 +24,11 @@ public class Shipment {
     /**
      * Prepares the dispatch of an order from a warehouse.
      */
-    public void prepare(Order order, LogisticsOperator operator, Warehouse originWarehouse,
+    public void prepare(String identifier, Order order, LogisticsOperator operator, Warehouse originWarehouse,
                         LocalDateTime dispatchDate) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new InvalidShipmentException("Shipment identifier must be provided.");
+        }
         if (order == null) {
             throw new InvalidShipmentException("A shipment must belong to an order.");
         }
@@ -38,6 +41,7 @@ public class Shipment {
         if (originWarehouse == null) {
             throw new InvalidShipmentException("A shipment must depart from a warehouse.");
         }
+        this.identifier = identifier;
         this.order = order;
         this.dispatchedBy = operator;
         this.originWarehouse = originWarehouse;

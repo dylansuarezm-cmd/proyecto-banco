@@ -11,4 +11,6 @@ public interface ProductRepositoryPort {
     Optional<Product> findByIdentifier(String identifier);
 
     Optional<PhysicalProduct> findPhysicalByIdentifier(String identifier);
+
+    boolean existsByIdentifier(String identifier);
 }

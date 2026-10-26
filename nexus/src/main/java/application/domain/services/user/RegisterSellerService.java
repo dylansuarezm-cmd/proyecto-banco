@@ -1,11 +1,13 @@
 package application.domain.services.user;
 
+import application.domain.exceptions.DuplicateUserException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Administrator;
 import application.domain.models.Seller;
 import application.domain.ports.in.RegisterSellerUseCase;
 import application.domain.ports.out.AdministratorRepositoryPort;
 import application.domain.ports.out.SellerRepositoryPort;
+import application.domain.ports.out.UserRepositoryPort;
 import application.domain.valueobjects.SystemRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
  * <p>Output: the persisted {@link Seller}, linked to the administrator that onboarded it.
  * <p>Exceptions: {@link EntityNotFoundException} when the administrator does not exist;
  * {@link application.domain.exceptions.SelfRegistrationNotAllowedException} is enforced by {@link Seller#onboardedBy}.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateUserException} when the identifier or email already belongs to another user, of any role.
  */
 @Service
 @RequiredArgsConstructor
@@ -24,16 +27,27 @@ public class RegisterSellerService implements RegisterSellerUseCase {
 
     private final AdministratorRepositoryPort administratorRepositoryPort;
     private final SellerRepositoryPort sellerRepositoryPort;
+    private final UserRepositoryPort userRepositoryPort;
 
     @Override
     public Seller register(String administratorIdentifier, String identifier, String fullName, String email) {
         Administrator administrator = administratorRepositoryPort.findByIdentifier(administratorIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Administrator"));
         administrator.requireActive();
+        requireUniqueIdentity(identifier, email);
 
         Seller seller = new Seller();
         seller.register(identifier, fullName, email, SystemRole.SELLER);
         administrator.registerSeller(seller);
         return sellerRepositoryPort.save(seller);
+    }
+
+    private void requireUniqueIdentity(String identifier, String email) {
+        if (identifier != null && userRepositoryPort.existsByIdentifier(identifier.trim())) {
+            throw new DuplicateUserException("A user with identifier " + identifier.trim() + " already exists.");
+        }
+        if (email != null && userRepositoryPort.existsByEmail(email.trim().toLowerCase())) {
+            throw new DuplicateUserException("A user with email " + email.trim().toLowerCase() + " already exists.");
+        }
     }
 }

@@ -161,7 +161,7 @@ This class cannot be instantiated directly.
 
 | Method | Description |
 | ------ | ----------- |
-| `register(identifier, fullName, email, role)` | Registers the user with its identity data and single role. Rejects a missing role (RG-02). |
+| `register(identifier, fullName, email, role)` | Registers the user with its identity data and single role. Rejects a missing role (RG-02) and a malformed email; trims the identifier and stores the email in lower case so uniqueness is checked consistently. Uniqueness of identifier and email is enforced by the registration services through `UserRepositoryPort`. |
 | `activate()` | Restores an inactive or blocked user to `ACTIVE`. |
 | `block()` | Suspends the user's access. |
 | `deactivate()` | Leaves the user registered but unable to operate. |
@@ -276,7 +276,7 @@ Represents a user responsible for the physical operation of warehouses and the d
 
 | Method | Description |
 | ------ | ----------- |
-| `dispatch(order, originWarehouse, dispatchDate)` | Prepares and links a `Shipment` for an order, moving it to `DISPATCHED`. Requires the `LOGISTICS_OPERATOR` role. |
+| `dispatch(shipmentIdentifier, order, originWarehouse, dispatchDate)` | Prepares and links a `Shipment` for an order, moving it to `DISPATCHED`. Requires the `LOGISTICS_OPERATOR` role. |
 
 ---
 

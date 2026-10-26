@@ -1,5 +1,6 @@
 package application.domain.services.catalog;
 
+import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.DigitalProduct;
 import application.domain.models.Seller;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
  * <p>Input: the seller's identifier, the product's identity data, and the asset delivered upon payment.
  * <p>Output: the persisted, published {@link DigitalProduct}.
  * <p>Exceptions: {@link EntityNotFoundException} when the seller does not exist.
+ * <p>Uniqueness: {@link application.domain.exceptions.DuplicateEntityException} when the product identifier is already in use.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,10 +32,18 @@ public class PublishDigitalProductService implements PublishDigitalProductUseCas
                 .orElseThrow(() -> new EntityNotFoundException("Seller"));
         seller.requireActive();
 
+        requireUnused(productIdentifier);
+
         DigitalProduct product = new DigitalProduct();
         product.register(productIdentifier, name, description);
         product.setDeliveryAsset(deliveryAsset);
         seller.publish(product);
         return (DigitalProduct) productRepositoryPort.save(product);
+    }
+
+    private void requireUnused(String value) {
+        if (productRepositoryPort.existsByIdentifier(value)) {
+            throw new DuplicateEntityException("Product " + value + " is already registered.");
+        }
     }
 }

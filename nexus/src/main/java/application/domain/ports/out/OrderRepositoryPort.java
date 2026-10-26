@@ -8,4 +8,6 @@ public interface OrderRepositoryPort {
     Order save(Order order);
 
     Optional<Order> findByIdentifier(String identifier);
+
+    boolean existsByIdentifier(String identifier);
 }
