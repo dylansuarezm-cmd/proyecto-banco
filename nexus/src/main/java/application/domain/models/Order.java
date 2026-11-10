@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -150,6 +151,16 @@ public class Order {
     /**
      * Indicates whether at least one item of the order is a product published by the given seller.
      */
+    /**
+     * Finds the purchased item for a product, by the product's identifier.
+     */
+    public Optional<OrderItem> findItemFor(String productIdentifier) {
+        return items.stream()
+                .filter(item -> item.getProduct() != null
+                        && item.getProduct().getIdentifier().equals(productIdentifier))
+                .findFirst();
+    }
+
     public boolean includesProductOf(Seller seller) {
         return seller != null && items.stream()
                 .anyMatch(item -> item.getProduct() != null && seller.owns(item.getProduct()));

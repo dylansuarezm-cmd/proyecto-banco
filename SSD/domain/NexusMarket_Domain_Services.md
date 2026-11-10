@@ -115,7 +115,7 @@ Confirms the delivery of a dispatched order, closing both the `Order` and its as
 
 ## Request Return
 
-Creates a `Return` request for a finalized order, validating that the requesting buyer is the one who placed it. An order can have only one return, and the return identifier must be unique.
+Creates a `Return` request for a finalized order, validating that the requesting buyer is the one who placed it. The request states which products of the order are returned and how many units of each (never more than were purchased), so the return is addressed to the Seller(s) who sold them. An order can have only one return, and the return identifier must be unique.
 
 ## Review Return
 
@@ -123,7 +123,7 @@ Approves or rejects a pending return request.
 
 ## Initiate Refund
 
-Registers a `Refund` for an approved return. Only the `Seller` responsible for the returned product may initiate it, and the return must already be approved. A return can have only one refund, and the refund identifier must be unique.
+Registers a `Refund` for an approved return. Only a `Seller` who sold at least one of the returned products may initiate it, and the return must already be approved. A return can have only one refund, and the refund identifier must be unique.
 
 ## Decide Refund
 

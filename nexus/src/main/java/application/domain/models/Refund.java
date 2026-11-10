@@ -48,9 +48,9 @@ public class Refund {
             throw new InvalidRefundException("Refund amount must be greater than zero.");
         }
         seller.requireActive();
-        if (!relatedReturn.getOrder().includesProductOf(seller)) {
+        if (!relatedReturn.includesProductOf(seller)) {
             throw new UnauthorizedDomainAccessException(
-                    "Seller " + seller.getIdentifier() + " did not sell any product of the returned order.");
+                    "Seller " + seller.getIdentifier() + " did not sell any of the returned products.");
         }
         this.identifier = identifier;
         this.relatedReturn = relatedReturn;

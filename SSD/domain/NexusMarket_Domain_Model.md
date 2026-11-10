@@ -52,6 +52,7 @@ OrderItem
 Invoice
 Shipment
 Return
+ReturnItem
 Refund
 ```
 
@@ -117,6 +118,7 @@ Shipment
 Return
    ├── requested by ────────────────> Buyer
    ├── references ──────────────────> Order
+   ├── contains ────────────────────> ReturnItem ──> Product (and, through it, the Seller)
    └── generates ───────────────────> Refund
 
 Refund
@@ -691,7 +693,7 @@ Represents the formal commercial commitment between a buyer and one or more sell
 * An `Order` contains one or more `OrderItem` instances.
 * An `Order` generates exactly one `Invoice`.
 * An `Order` generates one `Shipment` only when it contains at least one `PhysicalProduct` item.
-* An `Order` may originate one or more `Return` requests once finalized.
+* An `Order` may originate at most one `Return` request once finalized.
 
 ## Business Rule
 
@@ -812,7 +814,7 @@ Represents the logistics process required to deliver the physical products of an
 
 ## Description
 
-Represents a buyer's request to reverse all or part of a delivered `Order` (OBJ-11).
+Represents a buyer's request to reverse all or part of a delivered `Order` (OBJ-11). A return always states **which** products of the order are returned and **how many units** of each, so it is also known **to whom** it is addressed: the Seller who sold each returned product.
 
 ## Attributes
 
@@ -822,6 +824,7 @@ Represents a buyer's request to reverse all or part of a delivered `Order` (OBJ-
 | order         | Order         | Order being returned.                            |
 | requestedBy   | Buyer         | Buyer who requested the return.                  |
 | reason        | String        | Justification provided by the buyer.             |
+| items         | List\<ReturnItem\> | Products and units being returned. At least one. |
 | returnStatus  | ReturnStatus  | Current state of the return process.             |
 | requestDate   | LocalDateTime | Date and time when the return was requested.     |
 
@@ -829,16 +832,50 @@ Represents a buyer's request to reverse all or part of a delivered `Order` (OBJ-
 
 * A `Return` is requested by exactly one `Buyer`.
 * A `Return` references exactly one `Order`.
+* A `Return` contains one or more `ReturnItem` instances, each taken from an item of that order.
+* A `Return` is addressed to the Seller(s) who sold the returned products.
 * A `Return` may generate exactly one `Refund`.
 
 ## Behavior
 
 | Method | Description |
 | ------ | ----------- |
-| `request(identifier, order, buyer, reason)` | Submits a return; only a finalized order owned by the requesting buyer can be returned. |
+| `request(identifier, order, buyer, reason, lines)` | Submits a return; only a finalized order owned by the requesting buyer can be returned. The request must include at least one `ReturnLine` (product and units); it rejects a product that is not in the order, a repeated product, and more units than were purchased. |
+| `totalUnits()` | Total number of units sent back across all returned products. |
+| `includesProductOf(seller)` | Indicates whether at least one returned product was sold by that Seller. |
+| `involvedSellers()` | Sellers the return is addressed to, without repetition. |
 | `approve()` / `reject()` | Move the return from `REQUESTED` to `APPROVED` or `REJECTED`. |
 | `complete()` | Closes the return once the returned product has been processed. |
 | `isApproved()` | Indicates whether the return is `APPROVED`, a precondition for initiating a `Refund`. |
+
+---
+
+# ReturnItem
+
+## Description
+
+One line of a `Return`: a product of the returned order and the number of units sent back. It keeps the unit price paid at purchase, copied from the `OrderItem`.
+
+## Attributes
+
+| Attribute | Type       | Description                                          |
+| --------- | ---------- | ------------------------------------------------------- |
+| product   | Product    | Product being returned (its Seller is who receives the return). |
+| quantity  | Integer    | Units returned. Greater than zero and never above the units purchased. |
+| unitPrice | BigDecimal | Unit price paid at purchase.                              |
+
+## Relationships
+
+* A `ReturnItem` belongs to exactly one `Return`.
+* A `ReturnItem` references exactly one `Product`.
+
+## Behavior
+
+| Method | Description |
+| ------ | ----------- |
+| `define(purchasedItem, quantity)` | Defines the line from a purchased `OrderItem`; rejects a missing item, a non-positive quantity, or more units than were bought. |
+| `subtotal()` | Returns quantity × unit price. |
+| `isSoldBy(seller)` | Indicates whether the returned product was sold by that Seller. |
 
 ---
 
@@ -870,7 +907,7 @@ Represents the monetary reimbursement associated with an approved `Return` (OBJ-
 
 | Method | Description |
 | ------ | ----------- |
-| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. Rejects a seller who sold none of the returned order's products. |
+| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. Rejects a seller who sold none of the **returned** products (not merely of the order). |
 | `approve(administrator)` / `reject(administrator)` | The Administrator authorizes or denies the refund; throws `SelfApprovalNotAllowedException` if the approver is the same participant who initiated it. |
 | `process()` | Completes the reimbursement once it has been `APPROVED`. |
 | `isPending()` | Indicates whether the refund still awaits an Administrator's decision. |

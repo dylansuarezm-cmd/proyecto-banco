@@ -12,8 +12,8 @@ This document describes the architecture **as it is implemented in the repositor
 
 | Component | Status |
 | --- | --- |
-| Domain models (22 entities with behavior) | Implemented |
-| Domain value objects (12) and enums (3) | Implemented |
+| Domain models (23 entities with behavior) | Implemented |
+| Domain value objects (13) and enums (3) | Implemented |
 | Domain exceptions (23) | Implemented |
 | Input ports (22 use cases) | Implemented |
 | Output ports (14 repository contracts) | Implemented |
@@ -75,8 +75,8 @@ src/
             │           └── reporting/             (consolidated read models)
             │
             ├── domain/
-            │   ├── models/                        22 entities
-            │   ├── valueobjects/                  12 value objects
+            │   ├── models/                        23 entities
+            │   ├── valueobjects/                  13 value objects
             │   ├── enums/                         3 enumerations
             │   ├── exceptions/                    25 business exceptions
             │   ├── ports/
@@ -129,7 +129,7 @@ The domain is the core of the application. It contains the business rules of the
 
 ## Models
 
-The 22 entities are organized in four hierarchies plus standalone entities:
+The 23 entities are organized in four hierarchies plus standalone entities:
 
 ```text
 User (abstract)
@@ -151,7 +151,7 @@ Inventory, InventoryMovement
 Cart, CartItem
 Order, OrderItem
 Invoice, Shipment
-Return, Refund
+Return, ReturnItem, Refund
 ```
 
 Entities are not anemic: state changes happen through methods that validate the rule and raise a domain exception when it is broken (for example `Inventory.reserve()`, `Order.markAsPaid()`, `Refund.approve()`). Every method is documented in the **Behavior** section of the Domain Model document.
@@ -162,7 +162,7 @@ Controlled business concepts are immutable value objects inheriting from `Domain
 
 `SystemRole`, `UserStatus`, `CommercialStatus`, `ProductType`, `ProductStatus`, `InventoryMovementType`, `OrderStatus`, `ReturnStatus`, `RefundStatus`, and `Currency` (which adds `isoCode` and `symbol`).
 
-`ProductVariant` is a lightweight structural value object (variant type and value) that does not extend `DomainCatalog`, because its values are defined by each seller rather than by the domain.
+`ProductVariant` is a lightweight structural value object (variant type and value) that does not extend `DomainCatalog`, because its values are defined by each seller rather than by the domain. `ReturnLine` (product identifier and units) is another structural value object, used to describe what a buyer returns.
 
 ## Enums
 
@@ -300,7 +300,9 @@ RequestReturnService → ReviewReturnService
 | Damaged or non-existent stock cannot be reserved | `Inventory.reserve()` |
 | A finalized order cannot be modified | `Order.requireModifiable()` raises `OrderAlreadyFinalizedException` |
 | Order lifecycle: Cart → Pending Payment → Paid → Dispatched → Delivered/Finalized | Transition checks in `Order`; `CheckoutOrderService` calls `Order.submitForPayment()` so a confirmed order waits in Pending Payment |
-| A refund can only be initiated by a Seller who sold a product of the returned order | `Order.includesProductOf(seller)`, called from `Refund.initiate()` |
+| A return states which products and how many units are returned, never more than were purchased | `Return.request()` with `ReturnLine` and `ReturnItem.define()` |
+| A return is addressed to the Seller(s) who sold the returned products | `Return.involvedSellers()` |
+| A refund can only be initiated by a Seller who sold a product that was actually returned | `Return.includesProductOf(seller)`, called from `Refund.initiate()` |
 | The seller who initiates a refund cannot approve it | `Refund.approve()` and `Refund.reject()` raise `SelfApprovalNotAllowedException` |
 
 Mapping each use case to the roles allowed to invoke it (Responsibility Matrix, Section 12 of the specification) is otherwise the responsibility of the input adapter layer, which is planned.
@@ -321,7 +323,7 @@ Mapping each use case to the roles allowed to invoke it (Responsibility Matrix, 
 | OBJ-08 Orders | `Order`, `OrderItem`, `OrderStatus`, `CheckoutOrderService`, `ConfirmDeliveryService` |
 | OBJ-09 Invoicing | `Invoice`, `Currency`, `ProcessPaymentService` |
 | OBJ-10 Logistics | `Shipment`, `DispatchOrderService` |
-| OBJ-11 Returns and refunds | `Return`, `Refund`, `ReturnStatus`, `RefundStatus`, return and refund services |
+| OBJ-11 Returns and refunds | `Return`, `ReturnItem`, `ReturnLine`, `Refund`, `ReturnStatus`, `RefundStatus`, return and refund services |
 | OBJ-12 Administrative reports | Reporting adapter and `Supervisor` role (planned; not a domain service) |
 
 ---

@@ -418,6 +418,21 @@ Represents a single differentiating characteristic of a product, such as color, 
 
 ---
 
+# ReturnLine
+
+## Description
+
+Represents one line of a return request: the identifier of the product being returned and the number of units. It is an immutable Value Object, created when a buyer requests a return and used to build the `ReturnItem` entries of the `Return`. Like `ProductVariant`, it does not extend `DomainCatalog`.
+
+## Attributes
+
+| Attribute         | Type   | Description                                   |
+| ----------------- | ------ | ------------------------------------------------ |
+| productIdentifier | String | Identifier of a product that belongs to the order. Not blank. |
+| quantity          | int    | Units returned. Greater than zero.              |
+
+---
+
 # Value Object Design Rules
 
 ## Immutability
