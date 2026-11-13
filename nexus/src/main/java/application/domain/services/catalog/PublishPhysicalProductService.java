@@ -1,5 +1,6 @@
 package application.domain.services.catalog;
 
+import java.math.BigDecimal;
 import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.PhysicalProduct;
@@ -36,7 +37,8 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
 
     @Override
     public PhysicalProduct publish(String sellerIdentifier, String productIdentifier, String name,
-                                   String description, String warehouseIdentifier, int initialQuantity) {
+                                   String description, BigDecimal price, String warehouseIdentifier,
+                                   int initialQuantity) {
         Seller seller = sellerRepositoryPort.findByIdentifier(sellerIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Seller"));
         seller.requireActive();
@@ -47,7 +49,7 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
         requireUnused(productIdentifier);
 
         PhysicalProduct product = new PhysicalProduct();
-        product.register(productIdentifier, name, description);
+        product.register(productIdentifier, name, description, price);
         seller.publish(product);
         productRepositoryPort.save(product);
 

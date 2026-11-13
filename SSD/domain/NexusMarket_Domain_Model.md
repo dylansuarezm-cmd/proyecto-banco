@@ -438,6 +438,7 @@ This class cannot be instantiated directly.
 | seller       | Seller        | Seller who publishes and owns the product.          |
 | variants     | List\<ProductVariant\> | Differences such as color, size, or model. Empty by default. |
 | status       | ProductStatus | Current publication status of the product.          |
+| price        | BigDecimal    | Unit selling price. Greater than zero.              |
 
 ## Relationships
 
@@ -449,7 +450,8 @@ This class cannot be instantiated directly.
 
 | Method | Description |
 | ------ | ----------- |
-| `register(identifier, name, description)` | Registers the product's identity data, starting as `SUSPENDED`. |
+| `register(identifier, name, description, price)` | Registers the product's identity data and its price (greater than zero), starting as `SUSPENDED`. |
+| `requireAvailableFor(quantity)` | Verifies that the requested units can be sold. Digital products have no limit; physical products reject a quantity above the stock available (`InsufficientInventoryException`). |
 | `type()` | Abstract; returns `PHYSICAL` or `DIGITAL`. |
 | `requiresShipment()` | Abstract; indicates whether the product needs a `Shipment`. |
 | `publish()` / `suspend()` / `discontinue()` | Move the product through `ProductStatus`. `discontinue()` is final; a discontinued product can never be published again. |
@@ -632,8 +634,8 @@ Represents the buyer's provisional product selection prior to confirming an orde
 
 | Method | Description |
 | ------ | ----------- |
-| `addItem(product, quantity)` | Adds a published product to the selection, merging quantities when already present; rejects non-purchasable products. |
-| `removeItem(product)` / `updateQuantity(product, newQuantity)` | Remove or change a selected product's quantity. |
+| `addItem(product, quantity)` | Adds a published product to the selection, merging quantities when already present; rejects non-purchasable products and any total above the available stock (including units already in the cart). The item keeps the product's price. |
+| `removeItem(product)` / `updateQuantity(product, newQuantity)` | Remove or change a selected product's quantity; a new quantity above the available stock is rejected. |
 | `clear()` | Empties the cart. |
 | `isEmpty()` | Indicates whether the cart has no items. |
 | `containsPhysicalProducts()` | Indicates whether the selection will require a `Shipment`. |

@@ -1,6 +1,7 @@
 package application.domain.models;
 
 import application.domain.exceptions.InvalidCartException;
+import application.domain.exceptions.InvalidQuantityException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,14 +36,21 @@ public class Cart {
         if (product == null) {
             throw new InvalidCartException("The product to add must be provided.");
         }
+        if (quantity <= 0) {
+            throw new InvalidQuantityException("Cart item quantity must be greater than zero.");
+        }
         product.requirePurchasable();
         Optional<CartItem> existing = findItem(product);
+        int alreadyInCart = existing.map(CartItem::getQuantity).orElse(0);
+        product.requireAvailableFor(alreadyInCart + quantity);
         if (existing.isPresent()) {
             existing.get().increaseQuantity(quantity);
+            existing.get().setUnitPrice(product.getPrice());
             return;
         }
         CartItem item = new CartItem();
         item.select(product, quantity);
+        item.setUnitPrice(product.getPrice());
         this.items.add(item);
     }
 
@@ -55,7 +63,12 @@ public class Cart {
     public void updateQuantity(Product product, int newQuantity) {
         CartItem item = findItem(product)
                 .orElseThrow(() -> new InvalidCartException("The product is not present in the cart."));
+        if (newQuantity <= 0) {
+            throw new InvalidQuantityException("Cart item quantity must be greater than zero.");
+        }
+        product.requireAvailableFor(newQuantity);
         item.changeQuantity(newQuantity);
+        item.setUnitPrice(product.getPrice());
     }
 
     public void clear() {

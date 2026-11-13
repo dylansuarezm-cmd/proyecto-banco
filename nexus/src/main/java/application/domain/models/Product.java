@@ -7,6 +7,7 @@ import application.domain.valueobjects.ProductStatus;
 import application.domain.valueobjects.ProductType;
 import application.domain.valueobjects.ProductVariant;
 import application.domain.valueobjects.SystemRole;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -22,13 +23,18 @@ public abstract class Product {
     private Seller seller;
     private List<ProductVariant> variants = new ArrayList<>();
     private ProductStatus status;
+    private BigDecimal price;
 
-    public void register(String identifier, String name, String description) {
+    public void register(String identifier, String name, String description, BigDecimal price) {
         requireText(identifier, "Product identifier must be provided.");
         requireText(name, "Product name must not be empty.");
+        if (price == null || price.signum() <= 0) {
+            throw new InvalidProductException("Product price must be greater than zero.");
+        }
         this.identifier = identifier;
         this.name = name;
         this.description = description;
+        this.price = price;
         this.status = ProductStatus.SUSPENDED;
     }
 
@@ -41,6 +47,14 @@ public abstract class Product {
      * Physical products require inventory and dispatch; digital ones do not.
      */
     public abstract boolean requiresShipment();
+
+    /**
+     * Verifies that the requested units can be sold. Digital products have no stock limit; physical products
+     * override this to check their inventory.
+     */
+    public void requireAvailableFor(int quantity) {
+        // Digital products are always available.
+    }
 
     void assignSeller(Seller seller) {
         if (seller == null) {

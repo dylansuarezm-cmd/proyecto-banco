@@ -59,11 +59,11 @@ Creates a new warehouse owned and operated by a `Seller`. The warehouse identifi
 
 ## Publish Physical Product
 
-Creates a new physical product for a seller's catalog and opens its initial `Inventory` record in one of the seller's warehouses. The product identifier must be unique.
+Creates a new physical product for a seller's catalog and opens its initial `Inventory` record in one of the seller's warehouses. The product identifier must be unique and the price greater than zero.
 
 ## Publish Digital Product
 
-Creates a new digital product for a seller's catalog, together with the asset delivered immediately after payment. The product identifier must be unique.
+Creates a new digital product for a seller's catalog, together with the asset delivered immediately after payment. The product identifier must be unique and the price greater than zero.
 
 ## Manage Product Lifecycle
 
@@ -91,7 +91,7 @@ Moves a quantity of stock into the damaged pool, excluding it from any future re
 
 ## Manage Cart
 
-Adds, updates, or removes products in a buyer's cart, validating that every selected product is currently published.
+Adds, updates, or removes products in a buyer's cart, validating that every selected product is currently published and that the quantity requested never exceeds the stock available.
 
 ## Checkout Order
 

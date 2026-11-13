@@ -1,6 +1,7 @@
 package application.domain.models;
 
 import application.domain.valueobjects.ProductType;
+import application.domain.exceptions.InsufficientInventoryException;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -25,6 +26,18 @@ public class PhysicalProduct extends Product {
         return inventory.stream()
                 .mapToInt(record -> record.getAvailableQty() == null ? 0 : record.getAvailableQty())
                 .sum();
+    }
+
+    /**
+     * Rejects a quantity above the stock currently available, so nobody can put in a cart (or buy)
+     * more units than exist.
+     */
+    @Override
+    public void requireAvailableFor(int quantity) {
+        int available = totalAvailableQuantity();
+        if (quantity > available) {
+            throw new InsufficientInventoryException(quantity, available);
+        }
     }
 
     @Override

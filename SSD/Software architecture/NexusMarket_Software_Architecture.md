@@ -221,7 +221,7 @@ A domain service exists only when an operation coordinates several aggregates. I
 | `services/order` | `ManageCartService`, `CheckoutOrderService`, `ProcessPaymentService`, `DispatchOrderService`, `ConfirmDeliveryService` |
 | `services/refund` | `RequestReturnService`, `ReviewReturnService`, `InitiateRefundService`, `DecideRefundService`, `ProcessRefundService` |
 
-The three inventory services (`RegisterInventoryInflowService`, `AdjustInventoryService`, `MarkInventoryAsDamagedService`) delegate the role and ownership check to `Product.requireInventoryManagedBy(user)` before touching any stock. `InitiateRefundService` delegates the ownership check to `Refund.initiate(...)`, which calls `Order.includesProductOf(seller)`.
+The three inventory services (`RegisterInventoryInflowService`, `AdjustInventoryService`, `MarkInventoryAsDamagedService`) delegate the role and ownership check to `Product.requireInventoryManagedBy(user)` before touching any stock. `InitiateRefundService` delegates the ownership check to `Refund.initiate(...)`, which calls `Return.includesProductOf(seller)`.
 
 The input, output, and exception details of each service are documented as Javadoc on the service class.
 
@@ -298,6 +298,8 @@ RequestReturnService → ReviewReturnService
 | Inventory is administered only by the owning Seller or a Logistics Operator (Responsibility Matrix, Section 12) | `Product.requireInventoryManagedBy(user)`, called by the three inventory services |
 | Inventory can never be negative | `Inventory` methods raise `NegativeInventoryException` |
 | Damaged or non-existent stock cannot be reserved | `Inventory.reserve()` |
+| A cart can never hold more units of a physical product than the stock available | `Cart.addItem()` / `Cart.updateQuantity()` via `Product.requireAvailableFor()` |
+| Every product has a price greater than zero, kept in cart and order lines and totaled in the invoice | `Product.register()`, `Cart`, `OrderItem`, `Invoice.issueFor()` |
 | A finalized order cannot be modified | `Order.requireModifiable()` raises `OrderAlreadyFinalizedException` |
 | Order lifecycle: Cart → Pending Payment → Paid → Dispatched → Delivered/Finalized | Transition checks in `Order`; `CheckoutOrderService` calls `Order.submitForPayment()` so a confirmed order waits in Pending Payment |
 | A return states which products and how many units are returned, never more than were purchased | `Return.request()` with `ReturnLine` and `ReturnItem.define()` |
