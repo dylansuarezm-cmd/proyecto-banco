@@ -1,11 +1,13 @@
 package application.domain.models;
 
+import jakarta.persistence.Entity;
 import application.domain.exceptions.UnauthorizedDomainAccessException;
 import application.domain.valueobjects.SystemRole;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor

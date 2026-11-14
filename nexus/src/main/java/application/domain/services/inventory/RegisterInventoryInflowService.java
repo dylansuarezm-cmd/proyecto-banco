@@ -4,6 +4,7 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Inventory;
 import application.domain.models.PhysicalProduct;
 import application.domain.models.User;
+import application.domain.valueobjects.InventoryMovementType;
 import application.domain.models.Warehouse;
 import application.domain.ports.in.RegisterInventoryInflowUseCase;
 import application.domain.ports.out.InventoryRepositoryPort;
@@ -33,6 +34,7 @@ public class RegisterInventoryInflowService implements RegisterInventoryInflowUs
     private final ProductRepositoryPort productRepositoryPort;
     private final WarehouseRepositoryPort warehouseRepositoryPort;
     private final InventoryRepositoryPort inventoryRepositoryPort;
+    private final InventoryMovementRecorder movementRecorder;
 
     @Override
     public Inventory registerInflow(String performedByIdentifier, String productIdentifier,
@@ -49,6 +51,7 @@ public class RegisterInventoryInflowService implements RegisterInventoryInflowUs
                 .orElseThrow(() -> new EntityNotFoundException("Inventory"));
 
         inventory.registerInflow(quantity);
+        movementRecorder.record(InventoryMovementType.INFLOW, quantity, performedBy, inventory, "MANUAL_INFLOW");
         return inventoryRepositoryPort.save(inventory);
     }
 }

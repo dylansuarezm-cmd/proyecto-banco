@@ -95,11 +95,11 @@ Adds, updates, or removes products in a buyer's cart, validating that every sele
 
 ## Checkout Order
 
-Converts a buyer's cart into a formal `Order` and reserves the corresponding `Inventory` for every physical product included, coordinating the `Cart`, `Order`, and `Inventory` aggregates as a single business transaction. The new order is submitted for payment (`PENDING_PAYMENT`) and its identifier must not be in use.
+Converts a buyer's cart into a formal `Order` and reserves the corresponding `Inventory` for every physical product included, coordinating the `Cart`, `Order`, and `Inventory` aggregates as a single business transaction. The new order is submitted for payment (`PENDING_PAYMENT`) and its identifier must not be in use. Each reservation is recorded as a `RESERVATION` movement.
 
 ## Process Payment
 
-Confirms payment for a pending order, issues its `Invoice` (whose identifier must be unique), and confirms the sale outflow of the inventory previously reserved for it.
+Confirms payment for a pending order, issues its `Invoice` (whose identifier must be unique), and confirms the sale outflow of the inventory previously reserved for it, recording a `SALE_OUTFLOW` movement.
 
 ## Dispatch Order
 
@@ -119,11 +119,11 @@ Creates a `Return` request for a finalized order, validating that the requesting
 
 ## Review Return
 
-Approves or rejects a pending return request.
+Approves or rejects a pending return request. Only an Administrator, or a Seller who sold one of the returned products, can review it. When a return is approved, the returned physical units go back to the available stock of their product and a `RETURN` movement is recorded; digital products have no stock.
 
 ## Initiate Refund
 
-Registers a `Refund` for an approved return. Only a `Seller` who sold at least one of the returned products may initiate it, and the return must already be approved. A return can have only one refund, and the refund identifier must be unique.
+Registers a `Refund` for an approved return. Only a `Seller` who sold at least one of the returned products may initiate it, the return must already be approved, and the amount cannot exceed the value of the returned products sold by that seller. A return can have only one refund, and the refund identifier must be unique.
 
 ## Decide Refund
 

@@ -1,5 +1,9 @@
 package application.domain.models;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import application.domain.exceptions.DamagedInventoryReservationException;
 import application.domain.exceptions.InsufficientInventoryException;
 import application.domain.exceptions.InvalidInventoryException;
@@ -13,13 +17,18 @@ import lombok.Setter;
  * Distributed stock of a physical product in one specific warehouse.
  * Negative quantities are never permitted under any circumstance.
  */
+@Entity
+@Table(name = "inventories")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Inventory {
 
+    @Id
     private String identifier;
+    @ManyToOne
     private PhysicalProduct product;
+    @ManyToOne
     private Warehouse warehouse;
     private Integer availableQty;
     private Integer reservedQty;

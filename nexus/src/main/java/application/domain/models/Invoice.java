@@ -1,5 +1,11 @@
 package application.domain.models;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import application.domain.exceptions.InvalidInvoiceException;
 import application.domain.valueobjects.Currency;
 import java.math.BigDecimal;
@@ -11,13 +17,19 @@ import lombok.Setter;
 /**
  * Commercial billing information associated with a purchase.
  */
+@Entity
+@Table(name = "invoices")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Invoice {
 
+    @Id
     private String identifier;
+    @OneToOne
+    @JoinColumn(name = "order_id")
     private Order order;
+    @Column(precision = 19, scale = 2)
     private BigDecimal totalAmount;
     private Currency currency;
     private LocalDateTime issueDate;

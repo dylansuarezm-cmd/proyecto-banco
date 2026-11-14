@@ -1,5 +1,8 @@
 package application.domain.models;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
 import application.domain.valueobjects.ProductType;
 import application.domain.exceptions.InsufficientInventoryException;
 import java.util.ArrayList;
@@ -8,11 +11,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor
 public class PhysicalProduct extends Product {
 
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<Inventory> inventory = new ArrayList<>();
 
     void registerStock(Inventory stock) {

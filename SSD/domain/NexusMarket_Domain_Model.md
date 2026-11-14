@@ -584,6 +584,8 @@ Movements provide traceability of every change applied to distributed stock, ana
 | movementType   | InventoryMovementType   | Category of the stock movement.                  |
 | quantity       | Integer                 | Quantity affected by the movement.               |
 | executionDate  | LocalDateTime           | Date and time when the movement occurred.        |
+| reference      | String                  | What caused it: an order, a return, or a manual operation. |
+| availableAfter | Integer                 | Available quantity of the inventory right after the movement. |
 | performedBy    | User                    | User who registered the movement.                |
 | affectedInventory | Inventory            | Inventory record affected by the movement.       |
 
@@ -597,7 +599,7 @@ Movements provide traceability of every change applied to distributed stock, ana
 
 | Method | Description |
 | ------ | ----------- |
-| `record(movementId, movementType, quantity, performedBy, affectedInventory)` | Registers a movement, requiring an active user (RG-01) and a positive quantity. |
+| `record(movementId, movementType, quantity, performedBy, affectedInventory, reference)` | Registers a movement, requiring an active user (RG-01) and a positive quantity. |
 | `isOfType(expectedType)` | Confirms the movement's `InventoryMovementType`. |
 
 ## Examples of Generated Movements
@@ -909,7 +911,7 @@ Represents the monetary reimbursement associated with an approved `Return` (OBJ-
 
 | Method | Description |
 | ------ | ----------- |
-| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. Rejects a seller who sold none of the **returned** products (not merely of the order). |
+| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. Rejects a seller who sold none of the **returned** products (not merely of the order) and an amount above the value of the returned products sold by that seller. |
 | `approve(administrator)` / `reject(administrator)` | The Administrator authorizes or denies the refund; throws `SelfApprovalNotAllowedException` if the approver is the same participant who initiated it. |
 | `process()` | Completes the reimbursement once it has been `APPROVED`. |
 | `isPending()` | Indicates whether the refund still awaits an Administrator's decision. |

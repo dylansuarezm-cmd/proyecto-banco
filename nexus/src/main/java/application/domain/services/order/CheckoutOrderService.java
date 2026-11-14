@@ -8,6 +8,8 @@ import application.domain.models.Cart;
 import application.domain.models.CartItem;
 import application.domain.models.Inventory;
 import application.domain.models.Order;
+import application.domain.services.inventory.InventoryMovementRecorder;
+import application.domain.valueobjects.InventoryMovementType;
 import application.domain.models.PhysicalProduct;
 import application.domain.ports.in.CheckoutOrderUseCase;
 import application.domain.ports.out.BuyerRepositoryPort;
@@ -39,6 +41,7 @@ public class CheckoutOrderService implements CheckoutOrderUseCase {
     private final BuyerRepositoryPort buyerRepositoryPort;
     private final InventoryRepositoryPort inventoryRepositoryPort;
     private final OrderRepositoryPort orderRepositoryPort;
+    private final InventoryMovementRecorder movementRecorder;
 
     @Override
     public Order checkout(String buyerIdentifier, String orderIdentifier) {
@@ -51,7 +54,7 @@ public class CheckoutOrderService implements CheckoutOrderUseCase {
         Order order = new Order();
         order.placeFrom(orderIdentifier, buyer, cart);
 
-        reserveInventoryFor(cart);
+        reserveInventoryFor(buyer, cart, orderIdentifier);
         order.submitForPayment();
 
         cart.clear();
@@ -65,7 +68,7 @@ public class CheckoutOrderService implements CheckoutOrderUseCase {
         }
     }
 
-    private void reserveInventoryFor(Cart cart) {
+    private void reserveInventoryFor(Buyer buyer, Cart cart, String orderIdentifier) {
         for (CartItem item : cart.getItems()) {
             if (!(item.getProduct() instanceof PhysicalProduct physicalProduct)) {
                 continue;
@@ -75,6 +78,8 @@ public class CheckoutOrderService implements CheckoutOrderUseCase {
                     .orElseThrow(() -> new InvalidProductException(
                             "Product " + physicalProduct.getIdentifier() + " has no inventory to reserve."));
             inventory.reserve(item.getQuantity());
+            movementRecorder.record(InventoryMovementType.RESERVATION, item.getQuantity(), buyer, inventory,
+                    orderIdentifier);
             inventoryRepositoryPort.save(inventory);
         }
     }

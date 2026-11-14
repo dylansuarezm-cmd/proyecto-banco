@@ -1,5 +1,7 @@
 package application.domain.models;
 
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.ManyToOne;
 import application.domain.exceptions.InvalidOrderException;
 import application.domain.exceptions.InvalidQuantityException;
 import java.math.BigDecimal;
@@ -7,11 +9,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Embeddable
 @Getter
 @Setter
 @NoArgsConstructor
 public class OrderItem {
 
+    @ManyToOne
     private Product product;
     private Integer quantity;
     private BigDecimal unitPrice;

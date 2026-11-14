@@ -5,6 +5,8 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Inventory;
 import application.domain.models.Invoice;
 import application.domain.models.Order;
+import application.domain.services.inventory.InventoryMovementRecorder;
+import application.domain.valueobjects.InventoryMovementType;
 import application.domain.models.OrderItem;
 import application.domain.models.PhysicalProduct;
 import application.domain.ports.in.ProcessPaymentUseCase;
@@ -33,6 +35,7 @@ public class ProcessPaymentService implements ProcessPaymentUseCase {
     private final OrderRepositoryPort orderRepositoryPort;
     private final InvoiceRepositoryPort invoiceRepositoryPort;
     private final InventoryRepositoryPort inventoryRepositoryPort;
+    private final InventoryMovementRecorder movementRecorder;
 
     @Override
     public Order processPayment(String orderIdentifier, String invoiceIdentifier, Currency currency) {
@@ -65,6 +68,8 @@ public class ProcessPaymentService implements ProcessPaymentUseCase {
                     .findFirst()
                     .orElseThrow(() -> new EntityNotFoundException("Inventory"));
             inventory.confirmSaleOutflow(item.getQuantity());
+            movementRecorder.record(InventoryMovementType.SALE_OUTFLOW, item.getQuantity(), order.getBuyer(),
+                    inventory, order.getIdentifier());
             inventoryRepositoryPort.save(inventory);
         }
     }

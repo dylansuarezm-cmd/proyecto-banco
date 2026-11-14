@@ -1,5 +1,11 @@
 package application.domain.models;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import application.domain.exceptions.InvalidShipmentException;
 import java.time.LocalDateTime;
 import lombok.Getter;
@@ -9,14 +15,21 @@ import lombok.Setter;
 /**
  * Logistics process required to deliver the physical products of an order.
  */
+@Entity
+@Table(name = "shipments")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Shipment {
 
+    @Id
     private String identifier;
+    @OneToOne
+    @JoinColumn(name = "order_id")
     private Order order;
+    @ManyToOne
     private LogisticsOperator dispatchedBy;
+    @ManyToOne
     private Warehouse originWarehouse;
     private LocalDateTime dispatchDate;
     private LocalDateTime deliveryDate;

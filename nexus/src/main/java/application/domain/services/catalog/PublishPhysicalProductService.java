@@ -5,6 +5,8 @@ import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.PhysicalProduct;
 import application.domain.models.Seller;
+import application.domain.services.inventory.InventoryMovementRecorder;
+import application.domain.valueobjects.InventoryMovementType;
 import application.domain.models.Warehouse;
 import application.domain.ports.in.PublishPhysicalProductUseCase;
 import application.domain.ports.out.InventoryRepositoryPort;
@@ -34,6 +36,7 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
     private final WarehouseRepositoryPort warehouseRepositoryPort;
     private final ProductRepositoryPort productRepositoryPort;
     private final InventoryRepositoryPort inventoryRepositoryPort;
+    private final InventoryMovementRecorder movementRecorder;
 
     @Override
     public PhysicalProduct publish(String sellerIdentifier, String productIdentifier, String name,
@@ -57,6 +60,7 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
         inventory.open(productIdentifier + "-" + warehouseIdentifier, product, initialQuantity);
         warehouse.addInventory(inventory);
         inventoryRepositoryPort.save(inventory);
+        movementRecorder.record(InventoryMovementType.INFLOW, initialQuantity, seller, inventory, "INITIAL_STOCK");
 
         return product;
     }

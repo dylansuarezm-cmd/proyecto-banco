@@ -4,6 +4,7 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Inventory;
 import application.domain.models.PhysicalProduct;
 import application.domain.models.User;
+import application.domain.valueobjects.InventoryMovementType;
 import application.domain.models.Warehouse;
 import application.domain.ports.in.AdjustInventoryUseCase;
 import application.domain.ports.out.InventoryRepositoryPort;
@@ -33,6 +34,7 @@ public class AdjustInventoryService implements AdjustInventoryUseCase {
     private final ProductRepositoryPort productRepositoryPort;
     private final WarehouseRepositoryPort warehouseRepositoryPort;
     private final InventoryRepositoryPort inventoryRepositoryPort;
+    private final InventoryMovementRecorder movementRecorder;
 
     @Override
     public Inventory adjust(String performedByIdentifier, String productIdentifier, String warehouseIdentifier,
@@ -49,7 +51,10 @@ public class AdjustInventoryService implements AdjustInventoryUseCase {
         Inventory inventory = inventoryRepositoryPort.findByProductAndWarehouse(product, warehouse)
                 .orElseThrow(() -> new EntityNotFoundException("Inventory"));
 
+        int before = inventory.getAvailableQty() == null ? 0 : inventory.getAvailableQty();
         inventory.adjust(newQuantity);
+        movementRecorder.record(InventoryMovementType.ADJUSTMENT, Math.abs(newQuantity - before), performedBy,
+                inventory, "STOCK_COUNT_FROM_" + before + "_TO_" + newQuantity);
         return inventoryRepositoryPort.save(inventory);
     }
 }

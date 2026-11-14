@@ -13,6 +13,9 @@ public final class InventoryMovementType extends DomainCatalog {
     public static final InventoryMovementType RETURN = new InventoryMovementType(
             "RETURN", "Return", "Stock reincorporated as a result of an approved return.");
 
+    public static final InventoryMovementType DAMAGED = new InventoryMovementType(
+            "DAMAGED", "Damaged", "Available stock moved into the damaged pool.");
+
     private InventoryMovementType(String code, String name, String description) {
         super(code, name, description);
     }

@@ -1,16 +1,20 @@
 package application.domain.models;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.ManyToOne;
 import application.domain.enums.WarehouseOwnership;
 import application.domain.exceptions.InvalidWarehouseException;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor
 public class SellerWarehouse extends Warehouse {
 
+    @ManyToOne
     private Seller owner;
 
     public void assignOwner(Seller seller) {

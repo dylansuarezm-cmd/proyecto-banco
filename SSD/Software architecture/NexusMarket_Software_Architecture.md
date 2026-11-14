@@ -6,7 +6,7 @@ NexusMarket follows a **Hexagonal Architecture (Ports and Adapters)** combined w
 
 The goal of this architecture is to keep the marketplace business domain — users, sellers, buyers, warehouses, catalog, inventory, cart, orders, invoicing, logistics, returns and refunds — isolated from frameworks, databases, and communication protocols. Business rules live in the domain and never depend on external technology.
 
-This document describes the architecture **as it is implemented in the repository**, and clearly separates what already exists from what is planned for later stages.
+This document describes the architecture **as it is implemented in the repository**.
 
 ## Implementation Status
 
@@ -16,11 +16,11 @@ This document describes the architecture **as it is implemented in the repositor
 | Domain value objects (13) and enums (3) | Implemented |
 | Domain exceptions (23) | Implemented |
 | Input ports (22 use cases) | Implemented |
-| Output ports (14 repository contracts) | Implemented |
-| Domain services (22) | Implemented |
-| Input adapters (REST) | Planned |
-| Output adapters (persistence, reporting) | Planned |
-| Infrastructure (configuration, security) | Planned |
+| Output ports (15 repository contracts) | Implemented |
+| Domain services (22) and one helper component (`InventoryMovementRecorder`) | Implemented |
+| Input adapters (REST controllers, DTOs, error handling, Swagger) | Implemented |
+| Output adapters (JPA persistence on MySQL) | Implemented |
+| Security (login, roles, first administrator) | Implemented |
 
 ---
 
@@ -41,59 +41,58 @@ This document describes the architecture **as it is implemented in the repositor
 ```text
 Application
 │
-├── Adapters          (planned)
+├── Adapters          (implemented: REST, JPA persistence, security)
 │
 ├── Domain            (implemented)
 │
-└── Infrastructure    (planned)
+└── Configuration     (application.properties)
 ```
 
 ---
 
 # Package Structure
 
-The root package is `application`. Entries marked *(planned)* do not exist yet.
+The root package is `application`.
 
 ```text
 src/
 └── main/
+    ├── resources/
+    │   └── application.properties             (MySQL, Swagger, first administrator)
     └── java/
         └── application/
             │
             ├── NexusApplication.java
             │
-            ├── adapters/                          (planned)
-            │   ├── in/
-            │   │   └── rest/
-            │   │       ├── controllers/
-            │   │       ├── requests/
-            │   │       ├── responses/
-            │   │       └── mappers/
-            │   └── out/
-            │       └── persistence/
-            │           ├── relational/            (transactional data)
-            │           └── reporting/             (consolidated read models)
+            ├── adapters/
+            │   ├── persistence/jpa/
+            │   │   ├── JpaSupport.java            (shared helper for the adapters)
+            │   │   ├── QueryRepository.java       (read-only listings used by GET endpoints)
+            │   │   ├── adapters/                  15 output-port implementations (JPA / MySQL)
+            │   │   └── converters/                catalog value objects <-> database columns
+            │   ├── rest/
+            │   │   ├── controllers/               User, Warehouse, Product, Inventory, Cart,
+            │   │   │                              Order, Return, Refund, Report
+            │   │   ├── dtos/                      ApiRequests, ApiResponses
+            │   │   ├── exception/                 GlobalExceptionHandler (domain error -> HTTP code)
+            │   │   └── config/                    OpenApiConfig (Swagger)
+            │   └── security/                      SecurityConfig, login, AdminSeed
             │
-            ├── domain/
-            │   ├── models/                        23 entities
-            │   ├── valueobjects/                  13 value objects
-            │   ├── enums/                         3 enumerations
-            │   ├── exceptions/                    25 business exceptions
-            │   ├── ports/
-            │   │   ├── in/                        22 use case interfaces
-            │   │   └── out/                       14 repository interfaces
-            │   └── services/
-            │       ├── user/                      4 services
-            │       ├── warehouse/                 2 services
-            │       ├── catalog/                   3 services
-            │       ├── inventory/                 3 services
-            │       ├── order/                     5 services
-            │       └── refund/                    5 services
-            │
-            └── infrastructure/                    (planned)
-                ├── config/
-                ├── database/
-                └── security/
+            └── domain/
+                ├── models/                        23 entities
+                ├── valueobjects/                  13 value objects
+                ├── enums/                         3 enumerations
+                ├── exceptions/                    25 business exceptions
+                ├── ports/
+                │   ├── in/                        22 use case interfaces
+                │   └── out/                       15 repository interfaces
+                └── services/
+                    ├── user/                      4 services
+                    ├── warehouse/                 2 services
+                    ├── catalog/                   3 services
+                    ├── inventory/                 3 services + InventoryMovementRecorder
+                    ├── order/                     5 services
+                    └── refund/                    5 services
 ```
 
 ---
@@ -106,20 +105,24 @@ src/
 
 ---
 
-# Adapters (planned)
+# Adapters
 
 Adapters connect external technologies with the domain. They translate external requests into calls to the input ports and translate domain objects into technology-specific representations. The domain never communicates with an external system directly.
 
-## Input Adapters
+## Input Adapters (REST)
 
-REST controllers will receive HTTP requests from the five participants (Buyer, Seller, Logistics Operator, Administrator, Supervisor), convert request DTOs into domain values, invoke the corresponding input port, and convert the result into a response DTO. Controllers must never contain business rules.
+REST controllers receive HTTP requests from the five participants (Buyer, Seller, Logistics Operator, Administrator, Supervisor), invoke the corresponding input port and convert the result into a response DTO. Entities are never exposed directly. Controllers contain no business rules: the authenticated user is always taken from the login and passed to the use case as the actor, so nobody can act in the name of another user. The only checks done in controllers are visibility filters on GET endpoints and "is this order mine?" style checks.
 
-## Output Adapters
+`GlobalExceptionHandler` converts domain exceptions into HTTP codes: 404 (not found), 409 (duplicates, invalid status transitions, insufficient stock), 403 (not allowed), 400 (other validation errors).
 
-- **Relational persistence adapter:** will implement the output ports for the transactional data (users, catalog, inventory, carts, orders, invoices, shipments, returns, refunds).
-- **Reporting adapter:** will support the consolidated administrative consultation (OBJ-12), which is intentionally not a domain service because it does not protect any business rule.
+Swagger UI is available at `/swagger-ui.html` and is used to exercise every endpoint (button **Authorize** = HTTP Basic login).
 
-Each adapter will map between domain models and its own persistence representation.
+## Output Adapters (persistence)
+
+- Each of the 15 output ports has a JPA adapter in `adapters/persistence/jpa/adapters`, storing the data in MySQL (`nexus_db`, tables created automatically by Hibernate).
+- JPA annotations are placed directly on the domain models (a deliberate, pragmatic choice that avoids duplicating every entity). Catalog value objects (roles, statuses, currencies...) are stored by their code through converters.
+- Controllers run inside a transaction, so changes made by the domain to loaded entities are written to MySQL when the request ends.
+- `QueryRepository` holds read-only listing queries (users, products, orders, returns, refunds, stock movements...).
 
 ---
 
@@ -202,9 +205,9 @@ There are 22 input ports, one per use case, in `domain/ports/in/`. Each one is i
 
 ### Output Ports
 
-There are 14 output ports in `domain/ports/out/`, all repository contracts:
+There are 15 output ports in `domain/ports/out/`, all repository contracts:
 
-`UserRepositoryPort`, `BuyerRepositoryPort`, `SellerRepositoryPort`, `AdministratorRepositoryPort`, `LogisticsOperatorRepositoryPort`, `WarehouseRepositoryPort`, `ProductRepositoryPort`, `InventoryRepositoryPort`, `CartRepositoryPort`, `OrderRepositoryPort`, `InvoiceRepositoryPort`, `ShipmentRepositoryPort`, `ReturnRepositoryPort`, and `RefundRepositoryPort`.
+`UserRepositoryPort`, `BuyerRepositoryPort`, `SellerRepositoryPort`, `AdministratorRepositoryPort`, `LogisticsOperatorRepositoryPort`, `WarehouseRepositoryPort`, `ProductRepositoryPort`, `InventoryRepositoryPort`, `CartRepositoryPort`, `OrderRepositoryPort`, `InvoiceRepositoryPort`, `ShipmentRepositoryPort`, `ReturnRepositoryPort`, `RefundRepositoryPort`, and `InventoryMovementRepositoryPort`.
 
 Notification and payment-gateway ports are not defined yet; payment confirmation is currently modeled inside `ProcessPaymentService`.
 
@@ -217,23 +220,35 @@ A domain service exists only when an operation coordinates several aggregates. I
 | `services/user` | `RegisterBuyerService`, `RegisterSellerService`, `RegisterStaffUserService`, `ChangeUserStatusService` |
 | `services/warehouse` | `RegisterMarketplaceWarehouseService`, `RegisterSellerWarehouseService` |
 | `services/catalog` | `PublishPhysicalProductService`, `PublishDigitalProductService`, `ManageProductLifecycleService` |
-| `services/inventory` | `RegisterInventoryInflowService`, `AdjustInventoryService`, `MarkInventoryAsDamagedService` |
+| `services/inventory` | `RegisterInventoryInflowService`, `AdjustInventoryService`, `MarkInventoryAsDamagedService` (plus the helper `InventoryMovementRecorder`) |
 | `services/order` | `ManageCartService`, `CheckoutOrderService`, `ProcessPaymentService`, `DispatchOrderService`, `ConfirmDeliveryService` |
 | `services/refund` | `RequestReturnService`, `ReviewReturnService`, `InitiateRefundService`, `DecideRefundService`, `ProcessRefundService` |
 
 The three inventory services (`RegisterInventoryInflowService`, `AdjustInventoryService`, `MarkInventoryAsDamagedService`) delegate the role and ownership check to `Product.requireInventoryManagedBy(user)` before touching any stock. `InitiateRefundService` delegates the ownership check to `Refund.initiate(...)`, which calls `Return.includesProductOf(seller)`.
 
+`InventoryMovementRecorder` leaves a trace (`InventoryMovement`) of every stock change: initial stock, inflows, adjustments, damaged units, reservations at checkout, sale outflow at payment and returned units when a return is approved. The seller reports are built from this trace.
+
 The input, output, and exception details of each service are documented as Javadoc on the service class.
 
 ---
 
-# Infrastructure (planned)
+# Infrastructure: security and configuration
 
-Infrastructure will hold technical configuration and no business logic:
+- **Configuration:** `application.properties` defines the MySQL connection (the password comes from the `DB_PASSWORD` environment variable, never from a file), the Swagger path and the first administrator.
+- **Security:** Spring Security with HTTP Basic login, stateless. Users and passwords (encrypted with BCrypt) are stored in MySQL. On the first start `AdminSeed` creates the administrator `ADMIN-001` (the only user that cannot self-register). Each endpoint is protected with `@PreAuthorize` by role, and the domain still enforces ownership and state rules (RG-01 to RG-03).
 
-- **Config:** application and serialization configuration.
-- **Database:** connection and initialization settings.
-- **Security:** authentication and authorization plumbing. Technical authentication is outside the functional scope of the specification; this layer only identifies the authenticated user so the domain can enforce RG-01 to RG-03.
+## Roles and endpoints
+
+| Role | Allowed operations |
+| --- | --- |
+| Public | `POST /api/buyers` (buyer self-registration) |
+| Administrator | Register sellers (`/api/sellers`) and staff (`/api/staff`); change user status; marketplace warehouses; review returns; decide and process refunds; read everything |
+| Seller | Own warehouses and products (`/api/products/...`); inventory of own products; review returns and initiate refunds for own products; own orders (own lines only) and own reports (`/api/reports/sellers/{id}`) |
+| Buyer | Own cart (`/api/cart`), checkout and payment (`/api/orders/...`), return requests (`/api/returns`); sees only own orders, returns and refunds |
+| Logistics Operator | Dispatch (`/dispatch`) and delivery confirmation (`/delivery`); inventory operations; reads orders |
+| Supervisor | Read-only consultation (users, products, inventory, orders, returns, refunds, reports) |
+
+Seller reports (`/sales`, `/inventory`, `/movements`) are calculated from the database, so they are identical after restarting the application.
 
 ---
 
@@ -242,7 +257,7 @@ Infrastructure will hold technical configuration and no business logic:
 Dependencies always point toward the domain.
 
 ```text
-REST Controller (planned)
+REST Controller
         │
         ▼
 Input Port (UseCase interface)
@@ -254,7 +269,7 @@ Domain Service ──────► Domain Models (behavior and business rules)
 Output Port (RepositoryPort interface)
         │
         ▼
-Persistence Adapter (planned)
+Persistence Adapter (JPA)
         │
         ▼
 Database
@@ -305,9 +320,13 @@ RequestReturnService → ReviewReturnService
 | A return states which products and how many units are returned, never more than were purchased | `Return.request()` with `ReturnLine` and `ReturnItem.define()` |
 | A return is addressed to the Seller(s) who sold the returned products | `Return.involvedSellers()` |
 | A refund can only be initiated by a Seller who sold a product that was actually returned | `Return.includesProductOf(seller)`, called from `Refund.initiate()` |
+| A refund cannot exceed the value of the returned products sold by the seller who initiates it | `Refund.initiate()` compares with `Return.refundableAmountFor(seller)` |
+| A return can only be reviewed by an Administrator or by a Seller of one of the returned products | `Return.requireReviewableBy(user)`, called by `ReviewReturnService` |
+| An approved return puts the returned physical units back into stock | `ReviewReturnService` (`Inventory.registerReturn()`) and a `RETURN` movement |
+| Every stock-affecting action leaves an `InventoryMovement` | `InventoryMovementRecorder`, used by the inventory, catalog, checkout, payment and return services |
 | The seller who initiates a refund cannot approve it | `Refund.approve()` and `Refund.reject()` raise `SelfApprovalNotAllowedException` |
 
-Mapping each use case to the roles allowed to invoke it (Responsibility Matrix, Section 12 of the specification) is otherwise the responsibility of the input adapter layer, which is planned.
+The mapping of each use case to the roles allowed to invoke it (Responsibility Matrix, Section 12 of the specification) is done in the input adapter layer with `@PreAuthorize` (see *Roles and endpoints*).
 
 ---
 
@@ -326,7 +345,7 @@ Mapping each use case to the roles allowed to invoke it (Responsibility Matrix, 
 | OBJ-09 Invoicing | `Invoice`, `Currency`, `ProcessPaymentService` |
 | OBJ-10 Logistics | `Shipment`, `DispatchOrderService` |
 | OBJ-11 Returns and refunds | `Return`, `ReturnItem`, `ReturnLine`, `Refund`, `ReturnStatus`, `RefundStatus`, return and refund services |
-| OBJ-12 Administrative reports | Reporting adapter and `Supervisor` role (planned; not a domain service) |
+| OBJ-12 Administrative reports | `ReportController` (seller reports) and `Supervisor` role; not a domain service |
 
 ---
 

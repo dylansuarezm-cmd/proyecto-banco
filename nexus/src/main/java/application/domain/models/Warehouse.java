@@ -1,5 +1,13 @@
 package application.domain.models;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import application.domain.enums.WarehouseOwnership;
 import application.domain.exceptions.InvalidWarehouseException;
 import java.util.ArrayList;
@@ -8,13 +16,19 @@ import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
 
+@Entity
+@Table(name = "warehouses")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "warehouse_type")
 @Getter
 @Setter
 public abstract class Warehouse {
 
+    @Id
     private String identifier;
     private String name;
     private String location;
+    @OneToMany(mappedBy = "warehouse", cascade = CascadeType.ALL)
     private List<Inventory> inventory = new ArrayList<>();
 
     public void register(String identifier, String name, String location) {

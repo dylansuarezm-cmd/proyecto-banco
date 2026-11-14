@@ -1,5 +1,14 @@
 package application.domain.models;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import application.domain.exceptions.InvalidProductException;
 import application.domain.exceptions.InvalidStatusTransitionException;
 import application.domain.exceptions.UnauthorizedDomainAccessException;
@@ -13,16 +22,25 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
+@Entity
+@Table(name = "products")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "product_type")
 @Getter
 @Setter
 public abstract class Product {
 
+    @Id
     private String identifier;
     private String name;
+    @Column(length = 1000)
     private String description;
+    @ManyToOne
     private Seller seller;
+    @Transient
     private List<ProductVariant> variants = new ArrayList<>();
     private ProductStatus status;
+    @Column(precision = 19, scale = 2)
     private BigDecimal price;
 
     public void register(String identifier, String name, String description, BigDecimal price) {

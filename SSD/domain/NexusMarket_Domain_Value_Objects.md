@@ -198,6 +198,7 @@ Movements are independent from the current stock level: a movement represents an
 | SALE_OUTFLOW   | Sale Outflow   | Reduction of stock resulting from a confirmed sale.           |
 | ADJUSTMENT     | Adjustment     | Manual correction of stock quantity.                          |
 | RETURN         | Return         | Stock reincorporated as a result of an approved return.        |
+| DAMAGED        | Damaged        | Available stock moved into the damaged pool.                   |
 
 ---
 

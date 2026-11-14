@@ -1,5 +1,6 @@
 package application.domain.models;
 
+import jakarta.persistence.Entity;
 import application.domain.exceptions.InvalidRefundException;
 import application.domain.exceptions.InvalidUserException;
 import application.domain.exceptions.UnauthorizedDomainAccessException;
@@ -8,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor

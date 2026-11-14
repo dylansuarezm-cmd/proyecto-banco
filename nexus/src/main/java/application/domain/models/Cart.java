@@ -1,5 +1,12 @@
 package application.domain.models;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import application.domain.exceptions.InvalidCartException;
 import application.domain.exceptions.InvalidQuantityException;
 import java.math.BigDecimal;
@@ -13,13 +20,20 @@ import lombok.Setter;
 /**
  * Provisional product selection made by a buyer before confirming an order.
  */
+@Entity
+@Table(name = "carts")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Cart {
 
+    @Id
     private String identifier;
+    @OneToOne
+    @JoinColumn(name = "owner_id")
     private Buyer owner;
+    @ElementCollection
+    @CollectionTable(name = "cart_items")
     private List<CartItem> items = new ArrayList<>();
 
     void assignTo(Buyer buyer) {
@@ -27,6 +41,7 @@ public class Cart {
             throw new InvalidCartException("A cart must belong to a buyer.");
         }
         this.owner = buyer;
+        this.identifier = "CART-" + buyer.getIdentifier();
     }
 
     /**

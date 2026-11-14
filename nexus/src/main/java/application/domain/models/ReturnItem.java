@@ -1,5 +1,7 @@
 package application.domain.models;
 
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.ManyToOne;
 import application.domain.exceptions.InvalidQuantityException;
 import application.domain.exceptions.InvalidReturnException;
 import java.math.BigDecimal;
@@ -10,10 +12,12 @@ import lombok.NoArgsConstructor;
  * Line of a {@link Return}: a product of the returned order and the number of units sent back.
  * The unit price is the one the buyer actually paid, copied from the {@link OrderItem}.
  */
+@Embeddable
 @Getter
 @NoArgsConstructor
 public class ReturnItem {
 
+    @ManyToOne
     private Product product;
     private Integer quantity;
     private BigDecimal unitPrice;

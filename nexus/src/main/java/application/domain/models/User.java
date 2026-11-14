@@ -1,5 +1,12 @@
 package application.domain.models;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.Table;
 import application.domain.exceptions.InvalidRoleAssignmentException;
 import application.domain.exceptions.InvalidUserException;
 import application.domain.valueobjects.SystemRole;
@@ -7,12 +14,18 @@ import application.domain.valueobjects.UserStatus;
 import lombok.Getter;
 import lombok.Setter;
 
+@Entity(name = "UserAccount")
+@Table(name = "users")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "user_type")
 @Getter
 @Setter
 public abstract class User {
 
+    @Id
     private String identifier;
     private String fullName;
+    @Column(nullable = false, unique = true)
     private String email;
     private SystemRole role;
     private UserStatus status;

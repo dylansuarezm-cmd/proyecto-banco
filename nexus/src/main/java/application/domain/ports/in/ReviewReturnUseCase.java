@@ -7,5 +7,5 @@ public interface ReviewReturnUseCase {
 
     enum Decision { APPROVE, REJECT }
 
-    Return review(String returnIdentifier, Decision decision);
+    Return review(String reviewerIdentifier, String returnIdentifier, Decision decision);
 }

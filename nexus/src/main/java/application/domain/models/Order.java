@@ -1,5 +1,13 @@
 package application.domain.models;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import application.domain.exceptions.InvalidOrderException;
 import application.domain.exceptions.InvalidStatusTransitionException;
 import application.domain.exceptions.OrderAlreadyFinalizedException;
@@ -17,17 +25,25 @@ import lombok.Setter;
  * Formal commercial commitment between a buyer and the marketplace.
  * Its lifecycle is the central process of NexusMarket.
  */
+@Entity(name = "PurchaseOrder")
+@Table(name = "orders")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Order {
 
+    @Id
     private String identifier;
+    @ManyToOne
     private Buyer buyer;
+    @ElementCollection
+    @CollectionTable(name = "order_items")
     private List<OrderItem> items = new ArrayList<>();
     private OrderStatus orderStatus;
     private LocalDateTime creationDate;
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
     private Invoice invoice;
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
     private Shipment shipment;
 
     /**

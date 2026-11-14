@@ -1,11 +1,13 @@
 package application.domain.models;
 
+import jakarta.persistence.Entity;
 import application.domain.exceptions.InvalidProductException;
 import application.domain.valueobjects.ProductType;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor

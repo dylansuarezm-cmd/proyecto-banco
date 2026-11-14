@@ -4,6 +4,7 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Inventory;
 import application.domain.models.PhysicalProduct;
 import application.domain.models.User;
+import application.domain.valueobjects.InventoryMovementType;
 import application.domain.models.Warehouse;
 import application.domain.ports.in.MarkInventoryAsDamagedUseCase;
 import application.domain.ports.out.InventoryRepositoryPort;
@@ -33,6 +34,7 @@ public class MarkInventoryAsDamagedService implements MarkInventoryAsDamagedUseC
     private final ProductRepositoryPort productRepositoryPort;
     private final WarehouseRepositoryPort warehouseRepositoryPort;
     private final InventoryRepositoryPort inventoryRepositoryPort;
+    private final InventoryMovementRecorder movementRecorder;
 
     @Override
     public Inventory markAsDamaged(String performedByIdentifier, String productIdentifier,
@@ -50,6 +52,7 @@ public class MarkInventoryAsDamagedService implements MarkInventoryAsDamagedUseC
                 .orElseThrow(() -> new EntityNotFoundException("Inventory"));
 
         inventory.markAsDamaged(quantity);
+        movementRecorder.record(InventoryMovementType.DAMAGED, quantity, performedBy, inventory, "MARKED_DAMAGED");
         return inventoryRepositoryPort.save(inventory);
     }
 }

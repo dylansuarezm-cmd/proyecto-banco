@@ -1,5 +1,10 @@
 package application.domain.models;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import application.domain.exceptions.BuyerNotEligibleException;
 import application.domain.exceptions.InvalidUserException;
 import application.domain.valueobjects.CommercialStatus;
@@ -9,16 +14,21 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor
 public class Buyer extends User {
 
     private String primaryAddress;
+    @ElementCollection
     private List<String> additionalAddresses = new ArrayList<>();
     private CommercialStatus commercialStatus;
+    @OneToOne(mappedBy = "owner", cascade = CascadeType.ALL)
     private Cart cart;
+    @OneToMany(mappedBy = "buyer", cascade = CascadeType.ALL)
     private List<Order> orders = new ArrayList<>();
+    @OneToMany(mappedBy = "requestedBy", cascade = CascadeType.ALL)
     private List<Return> returns = new ArrayList<>();
 
     /**

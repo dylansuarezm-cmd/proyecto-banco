@@ -1,6 +1,15 @@
 package application.domain.models;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import application.domain.exceptions.InvalidReturnException;
+import application.domain.exceptions.UnauthorizedDomainAccessException;
+import application.domain.valueobjects.SystemRole;
 import application.domain.exceptions.InvalidStatusTransitionException;
 import application.domain.valueobjects.ReturnLine;
 import application.domain.valueobjects.ReturnStatus;
@@ -19,15 +28,23 @@ import lombok.Setter;
 /**
  * Buyer request to reverse all or part of a delivered order.
  */
+@Entity(name = "ReturnRequest")
+@Table(name = "returns")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Return {
 
+    @Id
     private String identifier;
+    @ManyToOne
     private Order order;
+    @ManyToOne
     private Buyer requestedBy;
+    @Column(length = 1000)
     private String reason;
+    @ElementCollection
+    @CollectionTable(name = "return_items")
     private List<ReturnItem> items = new ArrayList<>();
     private ReturnStatus returnStatus;
     private LocalDateTime requestDate;
@@ -139,6 +156,24 @@ public class Return {
             }
         }
         return sellers;
+    }
+
+    /**
+     * Only an Administrator, or a Seller who sold one of the returned products, can review the return.
+     */
+    public void requireReviewableBy(User reviewer) {
+        if (reviewer == null) {
+            throw new InvalidReturnException("A return review requires a reviewer.");
+        }
+        reviewer.requireActive();
+        if (reviewer.hasRole(SystemRole.ADMINISTRATOR)) {
+            return;
+        }
+        if (reviewer instanceof Seller seller && includesProductOf(seller)) {
+            return;
+        }
+        throw new UnauthorizedDomainAccessException(
+                "User " + reviewer.getIdentifier() + " cannot review return " + identifier + ".");
     }
 
     public boolean isApproved() {

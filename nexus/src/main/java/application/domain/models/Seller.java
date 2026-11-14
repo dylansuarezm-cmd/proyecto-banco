@@ -1,5 +1,9 @@
 package application.domain.models;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import application.domain.exceptions.InvalidProductException;
 import application.domain.exceptions.SelfRegistrationNotAllowedException;
 import application.domain.exceptions.UnauthorizedDomainAccessException;
@@ -9,14 +13,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor
 public class Seller extends User {
 
+    @ManyToOne
     private Administrator registeredBy;
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
     private List<SellerWarehouse> warehouses = new ArrayList<>();
+    @OneToMany(mappedBy = "seller", cascade = CascadeType.ALL)
     private List<Product> catalog = new ArrayList<>();
+    @OneToMany(mappedBy = "initiatedBy", cascade = CascadeType.ALL)
     private List<Refund> refundsInitiated = new ArrayList<>();
 
     /**

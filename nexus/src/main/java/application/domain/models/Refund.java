@@ -1,5 +1,10 @@
 package application.domain.models;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import application.domain.exceptions.InvalidRefundException;
 import application.domain.exceptions.InvalidStatusTransitionException;
 import application.domain.exceptions.SelfApprovalNotAllowedException;
@@ -15,15 +20,22 @@ import lombok.Setter;
  * Monetary reimbursement associated with an approved return.
  * The Seller initiates it and the Administrator authorizes it.
  */
+@Entity
+@Table(name = "refunds")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Refund {
 
+    @Id
     private String identifier;
+    @ManyToOne
     private Return relatedReturn;
+    @ManyToOne
     private Seller initiatedBy;
+    @ManyToOne
     private Administrator approvedBy;
+    @Column(precision = 19, scale = 2)
     private BigDecimal amount;
     private RefundStatus refundStatus;
     private LocalDateTime processedDate;
@@ -51,6 +63,10 @@ public class Refund {
         if (!relatedReturn.includesProductOf(seller)) {
             throw new UnauthorizedDomainAccessException(
                     "Seller " + seller.getIdentifier() + " did not sell any of the returned products.");
+        }
+        if (amount.compareTo(relatedReturn.refundableAmountFor(seller)) > 0) {
+            throw new InvalidRefundException("Refund amount exceeds the value of the returned products sold by "
+                    + seller.getIdentifier() + " (" + relatedReturn.refundableAmountFor(seller) + ").");
         }
         this.identifier = identifier;
         this.relatedReturn = relatedReturn;
