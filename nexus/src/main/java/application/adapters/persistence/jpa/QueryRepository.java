@@ -100,9 +100,9 @@ public class QueryRepository {
                 + "order by r.identifier", Refund.class, Map.of("b", buyer));
     }
 
-    public List<Refund> refundsInitiatedBy(Seller seller) {
-        return support.findAll("select r from Refund r where r.initiatedBy = :s order by r.identifier",
-                Refund.class, Map.of("s", seller));
+    public List<Refund> refundsWithProductsOf(Seller seller) {
+        return support.findAll("select distinct r from Refund r join r.relatedReturn rr join rr.items i "
+                + "where i.product.seller = :s order by r.identifier", Refund.class, Map.of("s", seller));
     }
 
     // ---- stock movements ----

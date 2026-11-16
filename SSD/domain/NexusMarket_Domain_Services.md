@@ -121,13 +121,13 @@ Creates a `Return` request for a finalized order, validating that the requesting
 
 Approves or rejects a pending return request. Only an Administrator, or a Seller who sold one of the returned products, can review it. When a return is approved, the returned physical units go back to the available stock of their product and a `RETURN` movement is recorded; digital products have no stock.
 
-## Initiate Refund
+## Request Refund
 
-Registers a `Refund` for an approved return. Only a `Seller` who sold at least one of the returned products may initiate it, the return must already be approved, and the amount cannot exceed the value of the returned products sold by that seller. A return can have only one refund, and the refund identifier must be unique.
+Registers a `Refund` for an approved return. Only the `Buyer` who made the return may request it (Responsibility Matrix: Buyer and Administrator), the return must already be approved, and the amount cannot exceed the value of the returned products. A return can have only one refund, and the refund identifier must be unique.
 
 ## Decide Refund
 
-Approves or rejects a pending refund. Only an `Administrator` may decide, and the administrator can never be the same participant who initiated the refund (separation of duties).
+Approves or rejects a pending refund. Only an `Administrator` may decide, and the administrator can never be the same participant who requested the refund (separation of duties).
 
 ## Process Refund
 

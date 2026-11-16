@@ -292,7 +292,7 @@ COMPLETED
 
 Represents the current state of a monetary reimbursement associated with a `Return` (OBJ-11).
 
-Reflects the shared responsibility between Seller and Administrator defined in the Responsibility Matrix (Section 12 of the specification): the Seller initiates the refund, and the Administrator authorizes it.
+Reflects the shared responsibility between Seller and Administrator defined in the Responsibility Matrix (Section 12 of the specification): the Buyer requests the refund, and the Administrator authorizes it.
 
 ## Inherits From
 
@@ -302,7 +302,7 @@ Reflects the shared responsibility between Seller and Administrator defined in t
 
 | Code       | Name       | Description                                                     |
 | ---------- | ---------- | ------------------------------------------------------------------ |
-| PENDING    | Pending    | Refund has been initiated by the Seller and awaits Administrator decision. |
+| PENDING    | Pending    | Refund has been requested by the Buyer and awaits Administrator decision. |
 | APPROVED   | Approved   | Refund has been approved by an Administrator.                        |
 | REJECTED   | Rejected   | Refund request has been denied by an Administrator.                   |
 | PROCESSED  | Processed  | Reimbursement has been completed.                                      |

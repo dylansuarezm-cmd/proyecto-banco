@@ -25,8 +25,6 @@ public class Seller extends User {
     private List<SellerWarehouse> warehouses = new ArrayList<>();
     @OneToMany(mappedBy = "seller", cascade = CascadeType.ALL)
     private List<Product> catalog = new ArrayList<>();
-    @OneToMany(mappedBy = "initiatedBy", cascade = CascadeType.ALL)
-    private List<Refund> refundsInitiated = new ArrayList<>();
 
     /**
      * Records the Administrator that onboarded this seller.
@@ -57,13 +55,6 @@ public class Seller extends User {
         product.assignSeller(this);
         product.publish();
         this.catalog.add(product);
-    }
-
-    public void registerInitiatedRefund(Refund refund) {
-        if (refund == null) {
-            throw new InvalidProductException("The refund to register must be provided.");
-        }
-        this.refundsInitiated.add(refund);
     }
 
     /**

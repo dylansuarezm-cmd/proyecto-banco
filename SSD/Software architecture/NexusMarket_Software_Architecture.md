@@ -242,9 +242,9 @@ The input, output, and exception details of each service are documented as Javad
 | Role | Allowed operations |
 | --- | --- |
 | Public | `POST /api/buyers` (buyer self-registration) |
-| Administrator | Register sellers (`/api/sellers`) and staff (`/api/staff`); change user status; marketplace warehouses; review returns; decide and process refunds; read everything |
-| Seller | Own warehouses and products (`/api/products/...`); inventory of own products; review returns and initiate refunds for own products; own orders (own lines only) and own reports (`/api/reports/sellers/{id}`) |
-| Buyer | Own cart (`/api/cart`), checkout and payment (`/api/orders/...`), return requests (`/api/returns`); sees only own orders, returns and refunds |
+| Administrator | Register sellers (`/api/sellers`) and staff (`/api/staff`); change user status; marketplace warehouses and the warehouses of each seller; review returns; decide and process refunds; consolidated report (`/api/reports/summary`); read everything |
+| Seller | Own warehouses and products (`/api/products/...`); inventory of own products; review returns of own products and consult the refunds that involve them; own orders (own lines only) and own reports (`/api/reports/sellers/{id}`) |
+| Buyer | Own cart (`/api/cart`), checkout and payment (`/api/orders/...`), return requests (`/api/returns`) and refund requests (`POST /api/refunds`); sees only own orders, returns and refunds |
 | Logistics Operator | Dispatch (`/dispatch`) and delivery confirmation (`/delivery`); inventory operations; reads orders |
 | Supervisor | Read-only consultation (users, products, inventory, orders, returns, refunds, reports) |
 
@@ -319,12 +319,12 @@ RequestReturnService → ReviewReturnService
 | Order lifecycle: Cart → Pending Payment → Paid → Dispatched → Delivered/Finalized | Transition checks in `Order`; `CheckoutOrderService` calls `Order.submitForPayment()` so a confirmed order waits in Pending Payment |
 | A return states which products and how many units are returned, never more than were purchased | `Return.request()` with `ReturnLine` and `ReturnItem.define()` |
 | A return is addressed to the Seller(s) who sold the returned products | `Return.involvedSellers()` |
-| A refund can only be initiated by a Seller who sold a product that was actually returned | `Return.includesProductOf(seller)`, called from `Refund.initiate()` |
-| A refund cannot exceed the value of the returned products sold by the seller who initiates it | `Refund.initiate()` compares with `Return.refundableAmountFor(seller)` |
+| A refund can only be requested by the Buyer who made the approved return (Responsibility Matrix: Buyer and Administrator) | `Refund.initiate()` |
+| A refund cannot exceed the value of the returned products | `Refund.initiate()` compares with `Return.refundableAmount()` |
 | A return can only be reviewed by an Administrator or by a Seller of one of the returned products | `Return.requireReviewableBy(user)`, called by `ReviewReturnService` |
 | An approved return puts the returned physical units back into stock | `ReviewReturnService` (`Inventory.registerReturn()`) and a `RETURN` movement |
 | Every stock-affecting action leaves an `InventoryMovement` | `InventoryMovementRecorder`, used by the inventory, catalog, checkout, payment and return services |
-| The seller who initiates a refund cannot approve it | `Refund.approve()` and `Refund.reject()` raise `SelfApprovalNotAllowedException` |
+| Whoever requests a refund cannot approve it | `Refund.approve()` and `Refund.reject()` raise `SelfApprovalNotAllowedException` |
 
 The mapping of each use case to the roles allowed to invoke it (Responsibility Matrix, Section 12 of the specification) is done in the input adapter layer with `@PreAuthorize` (see *Roles and endpoints*).
 

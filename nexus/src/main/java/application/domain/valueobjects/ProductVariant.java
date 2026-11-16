@@ -1,7 +1,11 @@
 package application.domain.valueobjects;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import application.domain.exceptions.InvalidProductException;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * Represents a single differentiating characteristic of a product,
@@ -12,15 +16,21 @@ import lombok.Getter;
  * since its possible values are defined per product by the Seller
  * rather than by the domain itself.
  */
+@Embeddable
 @Getter
 @EqualsAndHashCode
-public final class ProductVariant {
+@NoArgsConstructor
+public class ProductVariant {
 
-    private final String variantType;
-    private final String value;
+    private String variantType;
+    @Column(name = "variant_value")
+    private String value;
 
     public ProductVariant(String variantType, String value) {
-        this.variantType = variantType;
-        this.value = value;
+        if (variantType == null || variantType.isBlank() || value == null || value.isBlank()) {
+            throw new InvalidProductException("A variant needs a type (color, size, model...) and a value.");
+        }
+        this.variantType = variantType.trim();
+        this.value = value.trim();
     }
 }

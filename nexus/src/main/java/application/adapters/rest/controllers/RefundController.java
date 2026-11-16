@@ -27,8 +27,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Refunds: the seller of a returned product initiates it, an Administrator authorizes it (never the one who
- * initiated it) and then it is processed.
+ * Refunds (Responsibility Matrix: Buyer and Administrator): the buyer who made an approved return requests the
+ * refund, an Administrator authorizes it and then it is processed. Sellers can consult the refunds that involve
+ * their products.
  */
 @RestController
 @RequestMapping("/api/refunds")
@@ -58,7 +59,7 @@ public class RefundController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("hasRole('BUYER')")
     public RefundResponse initiate(Authentication authentication, @RequestBody ApiRequests.InitiateRefund request) {
         return RefundResponse.from(initiateRefund.initiate(authentication.getName(), request.returnIdentifier(),
                 request.refundIdentifier(), request.amount()));
@@ -89,7 +90,7 @@ public class RefundController {
                     .map(RefundResponse::from).toList();
         }
         if (Roles.is(authentication, "SELLER")) {
-            return queries.refundsInitiatedBy(seller(authentication)).stream().map(RefundResponse::from).toList();
+            return queries.refundsWithProductsOf(seller(authentication)).stream().map(RefundResponse::from).toList();
         }
         return queries.refunds().stream().map(RefundResponse::from).toList();
     }
@@ -104,9 +105,8 @@ public class RefundController {
                 && !found.getRelatedReturn().getRequestedBy().getIdentifier().equals(authentication.getName())) {
             throw Roles.forbidden("Refund " + refundIdentifier + " belongs to another buyer.");
         }
-        if (Roles.is(authentication, "SELLER")
-                && !found.getInitiatedBy().getIdentifier().equals(authentication.getName())) {
-            throw Roles.forbidden("Refund " + refundIdentifier + " was initiated by another seller.");
+        if (Roles.is(authentication, "SELLER") && !found.getRelatedReturn().includesProductOf(seller(authentication))) {
+            throw Roles.forbidden("Refund " + refundIdentifier + " has no products of this seller.");
         }
         return RefundResponse.from(found);
     }

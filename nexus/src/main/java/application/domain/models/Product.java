@@ -8,7 +8,8 @@ import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import application.domain.exceptions.InvalidProductException;
 import application.domain.exceptions.InvalidStatusTransitionException;
 import application.domain.exceptions.UnauthorizedDomainAccessException;
@@ -37,7 +38,8 @@ public abstract class Product {
     private String description;
     @ManyToOne
     private Seller seller;
-    @Transient
+    @ElementCollection
+    @CollectionTable(name = "product_variants")
     private List<ProductVariant> variants = new ArrayList<>();
     private ProductStatus status;
     @Column(precision = 19, scale = 2)

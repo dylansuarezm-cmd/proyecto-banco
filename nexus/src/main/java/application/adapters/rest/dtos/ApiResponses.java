@@ -47,15 +47,20 @@ public final class ApiResponses {
         }
     }
 
+    public record VariantResponse(String variantType, String value) {
+    }
+
     public record ProductResponse(String identifier, String name, String description, BigDecimal price,
                                   String type, String status, String sellerIdentifier,
-                                  Integer availableQuantity) {
+                                  Integer availableQuantity, List<VariantResponse> variants) {
         public static ProductResponse from(Product product) {
             Integer available = product instanceof PhysicalProduct physical
                     ? physical.totalAvailableQuantity() : null;
             return new ProductResponse(product.getIdentifier(), product.getName(), product.getDescription(),
                     product.getPrice(), product.type().getCode(), product.getStatus().getCode(),
-                    product.getSeller() == null ? null : product.getSeller().getIdentifier(), available);
+                    product.getSeller() == null ? null : product.getSeller().getIdentifier(), available,
+                    product.getVariants().stream()
+                            .map(v -> new VariantResponse(v.getVariantType(), v.getValue())).toList());
         }
     }
 
@@ -141,11 +146,12 @@ public final class ApiResponses {
     }
 
     public record RefundResponse(String identifier, String returnIdentifier, String orderIdentifier,
-                                 String sellerIdentifier, String approvedBy, BigDecimal amount, String status,
-                                 LocalDateTime processedDate) {
+                                 String buyerIdentifier, List<String> sellerIdentifiers, String approvedBy,
+                                 BigDecimal amount, String status, LocalDateTime processedDate) {
         public static RefundResponse from(Refund refund) {
             return new RefundResponse(refund.getIdentifier(), refund.getRelatedReturn().getIdentifier(),
-                    refund.getRelatedReturn().getOrder().getIdentifier(), refund.getInitiatedBy().getIdentifier(),
+                    refund.getRelatedReturn().getOrder().getIdentifier(), refund.getRequestedBy().getIdentifier(),
+                    refund.getRelatedReturn().involvedSellers().stream().map(Seller::getIdentifier).toList(),
                     refund.getApprovedBy() == null ? null : refund.getApprovedBy().getIdentifier(),
                     refund.getAmount(), refund.getRefundStatus().getCode(), refund.getProcessedDate());
         }
@@ -162,6 +168,21 @@ public final class ApiResponses {
                     inventory.getWarehouse() == null ? null : inventory.getWarehouse().getIdentifier(),
                     movement.getAvailableAfter(), movement.getExecutionDate());
         }
+    }
+
+    // ---- consolidated administrative report (OBJ-12) ----
+
+    public record SellerTotals(String sellerIdentifier, int unitsSold, BigDecimal grossSales,
+                               BigDecimal refundedAmount, BigDecimal netSales) {
+    }
+
+    /** One-page consolidated view for the Administrator and the Supervisor. */
+    public record AdministrativeSummary(Map<String, Long> usersByRole, Map<String, Long> productsByStatus,
+                                        Map<String, Long> ordersByStatus, Map<String, Long> returnsByStatus,
+                                        Map<String, Long> refundsByStatus, int totalAvailableStock,
+                                        int totalReservedStock, int totalDamagedStock, BigDecimal grossSales,
+                                        BigDecimal refundedAmount, BigDecimal netSales,
+                                        List<SellerTotals> salesBySeller) {
     }
 
     // ---- seller reports ----

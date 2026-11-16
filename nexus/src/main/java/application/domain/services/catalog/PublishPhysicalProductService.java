@@ -1,6 +1,8 @@
 package application.domain.services.catalog;
 
+import application.domain.valueobjects.ProductVariant;
 import java.math.BigDecimal;
+import java.util.List;
 import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.PhysicalProduct;
@@ -41,7 +43,7 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
     @Override
     public PhysicalProduct publish(String sellerIdentifier, String productIdentifier, String name,
                                    String description, BigDecimal price, String warehouseIdentifier,
-                                   int initialQuantity) {
+                                   int initialQuantity, List<ProductVariant> variants) {
         Seller seller = sellerRepositoryPort.findByIdentifier(sellerIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Seller"));
         seller.requireActive();
@@ -53,6 +55,7 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
 
         PhysicalProduct product = new PhysicalProduct();
         product.register(productIdentifier, name, description, price);
+        addVariants(product, variants);
         seller.publish(product);
         productRepositoryPort.save(product);
 
@@ -63,6 +66,12 @@ public class PublishPhysicalProductService implements PublishPhysicalProductUseC
         movementRecorder.record(InventoryMovementType.INFLOW, initialQuantity, seller, inventory, "INITIAL_STOCK");
 
         return product;
+    }
+
+    private void addVariants(PhysicalProduct product, List<ProductVariant> variants) {
+        if (variants != null) {
+            variants.forEach(product::addVariant);
+        }
     }
 
     private void requireUnused(String value) {

@@ -7,6 +7,7 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Product;
 import application.domain.ports.in.ManageProductLifecycleUseCase;
 import application.domain.ports.in.PublishDigitalProductUseCase;
+import application.domain.valueobjects.ProductVariant;
 import application.domain.ports.in.PublishPhysicalProductUseCase;
 import application.domain.ports.out.ProductRepositoryPort;
 import application.domain.ports.out.SellerRepositoryPort;
@@ -60,7 +61,7 @@ public class ProductController {
                                            @RequestBody ApiRequests.PublishPhysicalProduct request) {
         return ProductResponse.from(publishPhysical.publish(authentication.getName(), request.identifier(),
                 request.name(), request.description(), request.price(), request.warehouseIdentifier(),
-                request.initialQuantity()));
+                request.initialQuantity(), variants(request.variants())));
     }
 
     @PostMapping("/digital")
@@ -69,7 +70,13 @@ public class ProductController {
     public ProductResponse publishDigital(Authentication authentication,
                                           @RequestBody ApiRequests.PublishDigitalProduct request) {
         return ProductResponse.from(publishDigital.publish(authentication.getName(), request.identifier(),
-                request.name(), request.description(), request.price(), request.deliveryAsset()));
+                request.name(), request.description(), request.price(), request.deliveryAsset(),
+                variants(request.variants())));
+    }
+
+    private List<ProductVariant> variants(List<ApiRequests.VariantRequest> requested) {
+        return requested == null ? List.of() : requested.stream()
+                .map(v -> new ProductVariant(v.variantType(), v.value())).toList();
     }
 
     @PatchMapping("/{identifier}/lifecycle")

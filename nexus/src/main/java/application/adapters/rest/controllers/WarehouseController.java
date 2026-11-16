@@ -55,12 +55,25 @@ public class WarehouseController {
                 request.identifier(), request.name(), request.location()));
     }
 
+    /**
+     * The Administrator registers a seller's warehouse (the first one is part of onboarding the seller) by stating
+     * the seller's identifier; a seller can also register its own additional warehouses.
+     */
     @PostMapping("/seller")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR','SELLER')")
     @ResponseStatus(HttpStatus.CREATED)
     public WarehouseResponse registerSeller(Authentication authentication,
-                                            @RequestBody ApiRequests.RegisterWarehouse request) {
-        return WarehouseResponse.from(registerSellerWarehouse.register(authentication.getName(),
+                                            @RequestBody ApiRequests.RegisterSellerWarehouse request) {
+        String owner = request.sellerIdentifier();
+        if (isSeller(authentication)) {
+            if (owner != null && !owner.isBlank() && !owner.trim().equals(authentication.getName())) {
+                throw new UnauthorizedDomainAccessException("A seller can only register its own warehouses.");
+            }
+            owner = authentication.getName();
+        } else if (owner == null || owner.isBlank()) {
+            throw new IllegalArgumentException("sellerIdentifier must be provided by the Administrator.");
+        }
+        return WarehouseResponse.from(registerSellerWarehouse.register(owner.trim(),
                 request.identifier(), request.name(), request.location()));
     }
 

@@ -71,8 +71,7 @@ User
    ├── Seller
    │      ├── registeredBy ─────────> Administrator
    │      ├── owns ─────────────────> SellerWarehouse
-   │      ├── publishes ────────────> Product
-   │      └── initiates ────────────> Refund
+   │      └── publishes ────────────> Product
    │
    ├── LogisticsOperator
    │      └── dispatches ───────────> Shipment
@@ -122,7 +121,7 @@ Return
    └── generates ───────────────────> Refund
 
 Refund
-   ├── initiated by ─────────────────> Seller
+   ├── requested by ─────────────────> Buyer
    └── approved/rejected by ─────────> Administrator
 ```
 
@@ -237,14 +236,12 @@ Sellers cannot self-register; they are always incorporated by an `Administrator`
 | registeredBy  | Administrator            | Administrator who onboarded the seller.                  |
 | warehouses    | List\<SellerWarehouse\>  | Warehouses owned by the seller. Empty by default.         |
 | catalog       | List\<Product\>          | Products published by the seller. Empty by default.       |
-| refundsInitiated | List\<Refund\>        | Refunds initiated by the seller. Empty by default.         |
 
 ## Relationships
 
 * A `Seller` is registered by exactly one `Administrator`.
 * A `Seller` owns zero or more `SellerWarehouse` instances.
 * A `Seller` publishes zero or more `Product` instances.
-* A `Seller` initiates zero or more `Refund` instances for returns on their own products.
 
 ## Behavior
 
@@ -253,7 +250,6 @@ Sellers cannot self-register; they are always incorporated by an `Administrator`
 | `onboardedBy(administrator)` | Records the `Administrator` that onboarded this seller; throws `SelfRegistrationNotAllowedException` when no administrator is given. |
 | `addWarehouse(warehouse)` | Adds a `SellerWarehouse`, assigning this seller as its owner. |
 | `publish(product)` | Adds a product to the catalog and publishes it. |
-| `registerInitiatedRefund(refund)` | Links a `Refund` this seller initiated. |
 | `owns(product)` | Confirms a product belongs to this seller. |
 | `requireOwnershipOf(product)` | Guarantees a seller only administers its own products (RG-03); throws `UnauthorizedDomainAccessException` otherwise. |
 
@@ -296,7 +292,7 @@ Represents a user responsible for administering sellers and warehouses, and for 
 
 * An `Administrator` registers zero or more `Seller` instances.
 * An `Administrator` registers zero or more `Warehouse` instances.
-* An `Administrator` approves or rejects zero or more `Refund` instances initiated by a `Seller`.
+* An `Administrator` approves or rejects zero or more `Refund` instances requested by a `Buyer`.
 
 ## Behavior
 
@@ -304,7 +300,7 @@ Represents a user responsible for administering sellers and warehouses, and for 
 | ------ | ----------- |
 | `registerSeller(seller)` | Onboards a `Seller`, the only way a seller can be registered (no self-registration). |
 | `registerWarehouse(warehouse)` | Registers a `MarketplaceWarehouse`. |
-| `approveRefund(refund)` / `rejectRefund(refund)` | Authorizes or denies a `Refund` initiated by a Seller. Each method requires the `ADMINISTRATOR` role. |
+| `approveRefund(refund)` / `rejectRefund(refund)` | Authorizes or denies a `Refund` requested by a Buyer. Each method requires the `ADMINISTRATOR` role. |
 
 ---
 
@@ -436,7 +432,7 @@ This class cannot be instantiated directly.
 | name         | String        | Commercial name of the product.                     |
 | description  | String        | Detailed description of the product.                |
 | seller       | Seller        | Seller who publishes and owns the product.          |
-| variants     | List\<ProductVariant\> | Differences such as color, size, or model. Empty by default. |
+| variants     | List\<ProductVariant\> | Differences such as color, size, or model. Empty by default. Stored with the product. |
 | status       | ProductStatus | Current publication status of the product.          |
 | price        | BigDecimal    | Unit selling price. Greater than zero.              |
 
@@ -720,7 +716,7 @@ cannot be modified under any circumstance.
 | `requiresShipment()` | Indicates whether any item needs physical dispatch. |
 | `totalAmount()` | Sums every `OrderItem` subtotal. |
 | `belongsTo(candidate)` | Confirms the order was placed by the given buyer. |
-| `includesProductOf(seller)` | Confirms at least one item of the order is a product published by the given seller; used to validate who may initiate a refund for this order. |
+| `includesProductOf(seller)` | Confirms at least one item of the order is a product published by the given seller; used to validate which seller an order concerns. |
 
 ---
 
@@ -895,7 +891,7 @@ Represents the monetary reimbursement associated with an approved `Return` (OBJ-
 | ------------- | ------------- | ------------------------------------------------------- |
 | identifier    | String        | Unique identifier of the refund.                          |
 | relatedReturn | Return        | Return that originated the refund.                         |
-| initiatedBy   | Seller        | Seller who reviews the return and registers the refund.    |
+| requestedBy   | Buyer         | Buyer who made the return and requests the refund.         |
 | approvedBy    | Administrator?| Administrator who approves or rejects the refund request.  |
 | amount        | BigDecimal    | Amount reimbursed to the buyer.                            |
 | refundStatus  | RefundStatus  | Current state of the refund process.                       |
@@ -904,28 +900,28 @@ Represents the monetary reimbursement associated with an approved `Return` (OBJ-
 ## Relationships
 
 * A `Refund` originates from exactly one `Return`.
-* A `Refund` is initiated by exactly one `Seller`, consistent with the Responsibility Matrix (Section 12 of the specification), where both Seller and Administrator participate in refund management.
+* A `Refund` is requested by exactly one `Buyer` (the one who made the return), consistent with the Responsibility Matrix (Section 12 of the specification), where Buyer and Administrator participate in refund management. The Seller(s) involved are identified through the returned items (`Return.involvedSellers()`).
 * A `Refund` is approved or rejected by exactly one `Administrator`. `approvedBy` remains empty while `refundStatus = PENDING`.
 
 ## Behavior
 
 | Method | Description |
 | ------ | ----------- |
-| `initiate(identifier, relatedReturn, seller, amount)` | The Seller registers the refund for an approved return; starts as `PENDING`. Rejects a seller who sold none of the **returned** products (not merely of the order) and an amount above the value of the returned products sold by that seller. |
-| `approve(administrator)` / `reject(administrator)` | The Administrator authorizes or denies the refund; throws `SelfApprovalNotAllowedException` if the approver is the same participant who initiated it. |
+| `initiate(identifier, relatedReturn, buyer, amount)` | The Buyer who made the return requests the refund for an approved return; starts as `PENDING`. Rejects another buyer and an amount above the value of the returned products. |
+| `approve(administrator)` / `reject(administrator)` | The Administrator authorizes or denies the refund; throws `SelfApprovalNotAllowedException` if the approver is the same participant who requested it. |
 | `process()` | Completes the reimbursement once it has been `APPROVED`. |
 | `isPending()` | Indicates whether the refund still awaits an Administrator's decision. |
 
 ## Business Rule
 
 ```text
-A Refund can only be initiated by a Seller who sold at least one
-product of the returned Order, and can only move from PENDING to
-APPROVED or REJECTED through an explicit decision made by an
-Administrator.
+A Refund can only be requested by the Buyer who made the approved
+Return, for at most the value of the returned products, and can only
+move from PENDING to APPROVED or REJECTED through an explicit decision
+made by an Administrator.
 
-The Seller who initiates a Refund cannot also be its approver,
-enforcing separation of duties between execution and authorization.
+Whoever requests a Refund cannot also be its approver, enforcing
+separation of duties between request and authorization.
 ```
 
 ---
@@ -992,7 +988,7 @@ Return
     ▼
 Refund
     │
-    │ initiatedBy = Seller  (refundStatus = PENDING)
+    │ requestedBy = Buyer  (refundStatus = PENDING)
     │
     │ approved or rejected by Administrator
     ▼
@@ -1035,9 +1031,9 @@ refundStatus = PROCESSED  (only if APPROVED)
 ## Returns and Refunds
 
 * A `Return` always references the `Order` it originates from.
-* A `Refund` always references the `Return` that generated it, the `Seller` who initiated it, and the `Administrator` who approves or rejects it, consistent with the Responsibility Matrix in Section 12 of the specification.
+* A `Refund` always references the `Return` that generated it, the `Buyer` who requested it, and the `Administrator` who approves or rejects it, consistent with the Responsibility Matrix in Section 12 of the specification.
 * A `Refund` remains in `refundStatus = PENDING` with `approvedBy` empty until an `Administrator` makes an explicit decision.
-* The `Seller` who initiates a `Refund` must never also be its approver.
+* Whoever requests a `Refund` must never also be its approver.
 
 ## Value Objects
 

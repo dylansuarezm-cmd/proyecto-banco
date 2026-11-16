@@ -1,6 +1,8 @@
 package application.domain.services.catalog;
 
+import application.domain.valueobjects.ProductVariant;
 import java.math.BigDecimal;
+import java.util.List;
 import application.domain.exceptions.DuplicateEntityException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.DigitalProduct;
@@ -28,7 +30,8 @@ public class PublishDigitalProductService implements PublishDigitalProductUseCas
 
     @Override
     public DigitalProduct publish(String sellerIdentifier, String productIdentifier, String name,
-                                  String description, BigDecimal price, String deliveryAsset) {
+                                  String description, BigDecimal price, String deliveryAsset,
+                                  List<ProductVariant> variants) {
         Seller seller = sellerRepositoryPort.findByIdentifier(sellerIdentifier)
                 .orElseThrow(() -> new EntityNotFoundException("Seller"));
         seller.requireActive();
@@ -38,6 +41,9 @@ public class PublishDigitalProductService implements PublishDigitalProductUseCas
         DigitalProduct product = new DigitalProduct();
         product.register(productIdentifier, name, description, price);
         product.setDeliveryAsset(deliveryAsset);
+        if (variants != null) {
+            variants.forEach(product::addVariant);
+        }
         seller.publish(product);
         return (DigitalProduct) productRepositoryPort.save(product);
     }

@@ -18,7 +18,8 @@ import lombok.Setter;
 
 /**
  * Monetary reimbursement associated with an approved return.
- * The Seller initiates it and the Administrator authorizes it.
+ * The Buyer who returned the products requests it and the Administrator authorizes it (Responsibility Matrix,
+ * Section 12 of the specification). The Seller(s) involved are identified through the returned items.
  */
 @Entity
 @Table(name = "refunds")
@@ -32,7 +33,7 @@ public class Refund {
     @ManyToOne
     private Return relatedReturn;
     @ManyToOne
-    private Seller initiatedBy;
+    private Buyer requestedBy;
     @ManyToOne
     private Administrator approvedBy;
     @Column(precision = 19, scale = 2)
@@ -41,9 +42,9 @@ public class Refund {
     private LocalDateTime processedDate;
 
     /**
-     * The Seller registers the refund for an approved return; it then awaits authorization.
+     * The Buyer who made the return requests the refund for it once approved; it then awaits authorization.
      */
-    public void initiate(String identifier, Return relatedReturn, Seller seller, BigDecimal amount) {
+    public void initiate(String identifier, Return relatedReturn, Buyer buyer, BigDecimal amount) {
         if (identifier == null || identifier.isBlank()) {
             throw new InvalidRefundException("Refund identifier must be provided.");
         }
@@ -53,31 +54,30 @@ public class Refund {
         if (!relatedReturn.isApproved()) {
             throw new InvalidRefundException("Only an approved return can generate a refund.");
         }
-        if (seller == null) {
-            throw new InvalidRefundException("A refund must be initiated by a Seller.");
+        if (buyer == null) {
+            throw new InvalidRefundException("A refund must be requested by a Buyer.");
         }
         if (amount == null || amount.signum() <= 0) {
             throw new InvalidRefundException("Refund amount must be greater than zero.");
         }
-        seller.requireActive();
-        if (!relatedReturn.includesProductOf(seller)) {
+        buyer.requireActive();
+        if (!relatedReturn.getRequestedBy().sharesIdentityWith(buyer)) {
             throw new UnauthorizedDomainAccessException(
-                    "Seller " + seller.getIdentifier() + " did not sell any of the returned products.");
+                    "Buyer " + buyer.getIdentifier() + " did not make return " + relatedReturn.getIdentifier() + ".");
         }
-        if (amount.compareTo(relatedReturn.refundableAmountFor(seller)) > 0) {
-            throw new InvalidRefundException("Refund amount exceeds the value of the returned products sold by "
-                    + seller.getIdentifier() + " (" + relatedReturn.refundableAmountFor(seller) + ").");
+        if (amount.compareTo(relatedReturn.refundableAmount()) > 0) {
+            throw new InvalidRefundException("Refund amount exceeds the value of the returned products ("
+                    + relatedReturn.refundableAmount() + ").");
         }
         this.identifier = identifier;
         this.relatedReturn = relatedReturn;
-        this.initiatedBy = seller;
+        this.requestedBy = buyer;
         this.amount = amount;
         this.refundStatus = RefundStatus.PENDING;
-        seller.registerInitiatedRefund(this);
     }
 
     /**
-     * Authorizes the reimbursement. The initiating Seller can never be the approver.
+     * Authorizes the reimbursement. Whoever requested it can never be the approver.
      */
     public void approve(Administrator administrator) {
         requireDecidable(administrator, RefundStatus.APPROVED);
@@ -113,7 +113,7 @@ public class Refund {
         if (!isPending()) {
             throw new InvalidStatusTransitionException(statusCode(), target.getCode());
         }
-        if (initiatedBy != null && initiatedBy.sharesIdentityWith(administrator)) {
+        if (requestedBy != null && requestedBy.sharesIdentityWith(administrator)) {
             throw new SelfApprovalNotAllowedException();
         }
         administrator.requireActive();

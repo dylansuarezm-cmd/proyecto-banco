@@ -99,9 +99,10 @@ public class ReportController {
         }
         int units = lines.stream().mapToInt(SaleLine::quantity).sum();
         BigDecimal gross = lines.stream().map(SaleLine::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        List<Refund> refunds = queries.refundsInitiatedBy(seller);
+        List<Refund> refunds = queries.refundsWithProductsOf(seller);
         BigDecimal refunded = refunds.stream().filter(r -> RefundStatus.PROCESSED.equals(r.getRefundStatus()))
-                .map(Refund::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(r -> r.getAmount().min(r.getRelatedReturn().refundableAmountFor(seller)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         return new SalesReport(seller.getIdentifier(), lines, units, gross, refunded, gross.subtract(refunded),
                 refunds.stream().map(RefundResponse::from).toList());
     }
